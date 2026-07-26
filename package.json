@@ -1,8 +1,8 @@
 {
   "name": "yuuka-vscode-pet",
   "displayName": "Yuuka VS Code Pet",
-  "description": "早濑优香独立 VS Code 桌宠：像素动画、编辑器联动、任务反馈与互动。",
-  "version": "1.3.1",
+  "description": "早濑优香独立 VS Code 桌宠：像素动画、专注计时、任务提醒、编辑器联动与互动。",
+  "version": "1.4.0",
   "publisher": "local-yuuka-pet",
   "license": "UNLICENSED",
   "engines": {
@@ -15,10 +15,15 @@
     "onCommand:yuukaPet.show",
     "onCommand:yuukaPet.play",
     "onCommand:yuukaPet.work",
+    "onCommand:yuukaPet.reset",
     "onCommand:yuukaPet.jump",
     "onCommand:yuukaPet.think",
     "onCommand:yuukaPet.celebrateMilestone",
-    "onCommand:yuukaPet.resetRelationship"
+    "onCommand:yuukaPet.resetRelationship",
+    "onCommand:yuukaPet.startFocus",
+    "onCommand:yuukaPet.pauseFocus",
+    "onCommand:yuukaPet.resetFocus",
+    "onCommand:yuukaPet.clearStatistics"
   ],
   "icon": "media/icon.png",
   "contributes": {
@@ -61,6 +66,26 @@
       {
         "command": "yuukaPet.resetRelationship",
         "title": "Yuuka Pet: Reset Mood and Affinity",
+        "category": "Yuuka Pet"
+      },
+      {
+        "command": "yuukaPet.startFocus",
+        "title": "Yuuka Pet: Start or Resume Focus",
+        "category": "Yuuka Pet"
+      },
+      {
+        "command": "yuukaPet.pauseFocus",
+        "title": "Yuuka Pet: Pause Focus",
+        "category": "Yuuka Pet"
+      },
+      {
+        "command": "yuukaPet.resetFocus",
+        "title": "Yuuka Pet: Reset Focus Timer",
+        "category": "Yuuka Pet"
+      },
+      {
+        "command": "yuukaPet.clearStatistics",
+        "title": "Yuuka Pet: Clear Focus Statistics",
         "category": "Yuuka Pet"
       }
     ],
@@ -147,11 +172,79 @@
           "type": "boolean",
           "default": true,
           "description": "Enable local mood and affinity changes from interactions."
+        },
+        "yuukaPet.appearance.scene": {
+          "type": "string",
+          "enum": ["office", "millennium", "transparent"],
+          "enumDescriptions": [
+            "A restrained office background with a desk edge and soft window light.",
+            "A blue technology-inspired grid with subtle data accents.",
+            "A minimal background that blends into the current VS Code theme."
+          ],
+          "default": "millennium",
+          "description": "Local background scene shown behind Yuuka."
+        },
+        "yuukaPet.focus.focusMinutes": {
+          "type": "number",
+          "default": 25,
+          "minimum": 1,
+          "maximum": 180,
+          "description": "Minutes in one focus session."
+        },
+        "yuukaPet.focus.shortBreakMinutes": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Minutes in a short break."
+        },
+        "yuukaPet.focus.longBreakMinutes": {
+          "type": "number",
+          "default": 15,
+          "minimum": 1,
+          "maximum": 120,
+          "description": "Minutes in a long break."
+        },
+        "yuukaPet.focus.longBreakEvery": {
+          "type": "number",
+          "default": 4,
+          "minimum": 1,
+          "maximum": 12,
+          "description": "Completed focus sessions before a long break."
+        },
+        "yuukaPet.reminders.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable recurring hydration and hourly reminders."
+        },
+        "yuukaPet.reminders.hydrationMinutes": {
+          "type": "number",
+          "default": 60,
+          "minimum": 15,
+          "maximum": 240,
+          "description": "Minutes between hydration reminders when recurring reminders are enabled."
+        },
+        "yuukaPet.reminders.hourly": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable one low-frequency reminder at each hour."
+        },
+        "yuukaPet.reminders.quietHoursStart": {
+          "type": "string",
+          "default": "22:00",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+          "description": "Start of the reminder quiet period in 24-hour HH:mm format."
+        },
+        "yuukaPet.reminders.quietHoursEnd": {
+          "type": "string",
+          "default": "08:00",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+          "description": "End of the reminder quiet period in 24-hour HH:mm format."
         }
       }
     }
   },
   "scripts": {
-    "check": "node --check extension.js && node --check reactionPolicy.js && node --check media/dialogue.js && node --check media/main.js && node --test"
+    "check": "node --check extension.js && node --check reactionPolicy.js && node --check productivityState.js && node --check productivityController.js && node --check media/dialogue.js && node --check media/main.js && node --test"
   }
 }

@@ -1,5 +1,6 @@
 const vscode = require('vscode');
 const { ReactionPolicy } = require('./reactionPolicy');
+const { ProductivityController } = require('./productivityController');
 
 class YuukaViewProvider {
   static viewType = 'yuukaPet.view';
@@ -7,6 +8,11 @@ class YuukaViewProvider {
   constructor(extensionUri) {
     this.extensionUri = extensionUri;
     this.view = undefined;
+    this.productivity = undefined;
+  }
+
+  setProductivity(productivity) {
+    this.productivity = productivity;
   }
 
   resolveWebviewView(webviewView) {
@@ -21,9 +27,19 @@ class YuukaViewProvider {
       if (message.type === 'hello') {
         vscode.window.setStatusBarMessage('优香：今天的任务也要按计划完成。', 3500);
         this.post('settings', { settings: getWebviewSettings() });
+        this.productivity?.sync(true);
       }
       if (message.type === 'status') {
         vscode.window.setStatusBarMessage(`优香：${message.text}`, 3500);
+      }
+      if (message.type === 'productivity') {
+        void this.productivity?.handleAction(message.action, message);
+      }
+      if (message.type === 'relationshipSettings' && typeof message.enabled === 'boolean') {
+        void updateRelationshipEnabled(this, message.enabled);
+      }
+      if (message.type === 'appearanceSettings' && typeof message.scene === 'string') {
+        void updateAppearanceScene(this, message.scene);
       }
     });
   }
@@ -68,7 +84,7 @@ class YuukaViewProvider {
   <title>早濑优香</title>
 </head>
 <body>
-  <main id="world" aria-label="早濑优香桌宠活动区域">
+  <main id="world" data-scene="millennium" aria-label="早濑优香桌宠活动区域">
     <section id="speech" role="status">今天的工作清单整理好了吗？</section>
     <div id="hint">点击优香互动 · 点击地面让她走过去</div>
     <div id="pet" class="sprite" role="button" tabindex="0" aria-label="早濑优香"></div>
@@ -79,6 +95,100 @@ class YuukaViewProvider {
     <button id="work">工作</button>
     <button id="reset">复位</button>
   </nav>
+  <section id="productivity" aria-label="生产力工具">
+    <div class="tabs" role="tablist" aria-label="桌宠功能视图">
+      <button class="tab active" role="tab" aria-selected="true" data-panel="focus-panel">专注</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="tasks-panel">任务</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="reminders-panel">提醒</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="stats-panel">统计</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="relationship-panel">关系</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="scene-panel">场景</button>
+    </div>
+    <section id="focus-panel" class="panel active" role="tabpanel">
+      <div class="timer-context">
+        <strong id="timer-phase">专注</strong>
+        <span id="timer-task">未选择当前任务</span>
+      </div>
+      <div id="timer-display" aria-live="polite">25:00</div>
+      <div class="button-row three">
+        <button id="timer-primary">开始</button>
+        <button id="timer-stop" class="secondary">结束</button>
+        <button id="timer-reset" class="secondary">重置</button>
+      </div>
+    </section>
+    <section id="tasks-panel" class="panel" role="tabpanel" hidden>
+      <form id="task-form" class="inline-form">
+        <input id="task-input" type="text" maxlength="120" placeholder="添加今日任务" aria-label="任务内容">
+        <button type="submit">添加</button>
+      </form>
+      <div id="task-empty" class="empty-state">今天还没有任务。</div>
+      <ul id="task-list" class="item-list" aria-label="今日任务"></ul>
+    </section>
+    <section id="reminders-panel" class="panel" role="tabpanel" hidden>
+      <form id="reminder-form" class="stack-form">
+        <input id="reminder-input" type="text" maxlength="120" placeholder="提醒内容" aria-label="提醒内容">
+        <div class="inline-form">
+          <input id="reminder-time" type="datetime-local" aria-label="提醒时间">
+          <button type="submit">添加</button>
+        </div>
+      </form>
+      <div id="reminder-empty" class="empty-state">没有待处理提醒。</div>
+      <ul id="reminder-list" class="item-list" aria-label="提醒列表"></ul>
+    </section>
+    <section id="stats-panel" class="panel" role="tabpanel" hidden>
+      <div class="stats-grid">
+        <div><strong id="today-focus">0</strong><span>今日专注</span></div>
+        <div><strong id="today-minutes">0</strong><span>今日分钟</span></div>
+        <div><strong id="today-tasks">0</strong><span>今日任务</span></div>
+        <div><strong id="focus-streak">0</strong><span>连续天数</span></div>
+        <div><strong id="week-minutes">0</strong><span>本周分钟</span></div>
+        <div><strong id="week-tasks">0</strong><span>本周任务</span></div>
+      </div>
+      <button id="clear-stats" class="secondary full-width">清除本机统计</button>
+    </section>
+    <section id="relationship-panel" class="panel" role="tabpanel" hidden>
+      <label class="toggle-row">
+        <input id="relationship-enabled" type="checkbox">
+        <span>启用心情与亲密度</span>
+      </label>
+      <div id="relationship-controls" class="relationship-controls">
+        <label class="field-row" for="mood-select">
+          <span>当前心情</span>
+          <select id="mood-select">
+            <option value="2">很开心</option>
+            <option value="1">开心</option>
+            <option value="0">平静</option>
+            <option value="-1">低落</option>
+            <option value="-2">很低落</option>
+          </select>
+        </label>
+        <div class="affinity-heading">
+          <label for="affinity-range">好感</label>
+          <output id="affinity-output" for="affinity-range affinity-number">0</output>
+        </div>
+        <div class="affinity-editor">
+          <input id="affinity-range" type="range" min="0" max="100" step="1" value="0" aria-label="好感值">
+          <input id="affinity-number" type="number" min="0" max="100" step="1" value="0" aria-label="手动输入好感值">
+        </div>
+        <button id="reset-relationship" class="secondary full-width">重置为平静与 0 好感</button>
+      </div>
+    </section>
+    <section id="scene-panel" class="panel" role="tabpanel" hidden>
+      <label class="field-row" for="scene-select">
+        <span>桌宠背景</span>
+        <select id="scene-select">
+          <option value="office">简洁办公室</option>
+          <option value="millennium">千年风格</option>
+          <option value="transparent">纯透明感</option>
+        </select>
+      </label>
+      <div class="scene-description">
+        <strong id="scene-name">千年风格</strong>
+        <p id="scene-detail">蓝色网格与数据光效，呼应千年科技感。</p>
+      </div>
+      <p class="local-note">颜色会跟随 VS Code 深色或浅色主题；背景仅使用扩展内置样式。</p>
+    </section>
+  </section>
   <script nonce="${nonce}" src="${dialogueUri}"></script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
@@ -88,6 +198,8 @@ class YuukaViewProvider {
 
 function activate(context) {
   const provider = new YuukaViewProvider(context.extensionUri);
+  const productivity = new ProductivityController(context, provider, vscode, getProductivitySettings);
+  provider.setProductivity(productivity);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(YuukaViewProvider.viewType, provider),
     vscode.commands.registerCommand('yuukaPet.show', async () => {
@@ -120,9 +232,22 @@ function activate(context) {
     vscode.commands.registerCommand('yuukaPet.resetRelationship', async () => {
       await vscode.commands.executeCommand('workbench.view.extension.yuukaPet');
       provider.send('resetRelationship');
+    }),
+    vscode.commands.registerCommand('yuukaPet.startFocus', async () => {
+      await vscode.commands.executeCommand('workbench.view.extension.yuukaPet');
+      await productivity.handleAction('start');
+    }),
+    vscode.commands.registerCommand('yuukaPet.pauseFocus', async () => {
+      await productivity.handleAction('pause');
+    }),
+    vscode.commands.registerCommand('yuukaPet.resetFocus', async () => {
+      await productivity.handleAction('reset');
+    }),
+    vscode.commands.registerCommand('yuukaPet.clearStatistics', async () => {
+      await productivity.handleAction('clearStats');
     })
   );
-  registerEditorReactions(context, provider);
+  registerEditorReactions(context, provider, productivity);
 }
 
 function deactivate() {}
@@ -149,11 +274,52 @@ function getReactionSettings() {
 function getWebviewSettings() {
   return {
     relationshipEnabled: vscode.workspace.getConfiguration('yuukaPet.relationship').get('enabled', true),
-    randomEventFrequency: vscode.workspace.getConfiguration('yuukaPet.randomEvents').get('frequency', 'low')
+    randomEventFrequency: vscode.workspace.getConfiguration('yuukaPet.randomEvents').get('frequency', 'low'),
+    scene: vscode.workspace.getConfiguration('yuukaPet.appearance').get('scene', 'millennium')
   };
 }
 
-function registerEditorReactions(context, provider) {
+async function updateRelationshipEnabled(provider, enabled) {
+  try {
+    await vscode.workspace.getConfiguration('yuukaPet.relationship')
+      .update('enabled', enabled, vscode.ConfigurationTarget.Global);
+  } catch (error) {
+    provider.post('settings', { settings: getWebviewSettings() });
+    vscode.window.showErrorMessage(`无法更新心情与亲密度设置：${error.message}`);
+  }
+}
+
+async function updateAppearanceScene(provider, scene) {
+  const allowedScenes = new Set(['office', 'millennium', 'transparent']);
+  if (!allowedScenes.has(scene)) return;
+  try {
+    await vscode.workspace.getConfiguration('yuukaPet.appearance')
+      .update('scene', scene, vscode.ConfigurationTarget.Global);
+  } catch (error) {
+    provider.post('settings', { settings: getWebviewSettings() });
+    vscode.window.showErrorMessage(`无法更新桌宠背景：${error.message}`);
+  }
+}
+
+function getProductivitySettings() {
+  const focus = vscode.workspace.getConfiguration('yuukaPet.focus');
+  const reminders = vscode.workspace.getConfiguration('yuukaPet.reminders');
+  return {
+    durations: {
+      focus: focus.get('focusMinutes', 25) * 60000,
+      shortBreak: focus.get('shortBreakMinutes', 5) * 60000,
+      longBreak: focus.get('longBreakMinutes', 15) * 60000
+    },
+    longBreakEvery: focus.get('longBreakEvery', 4),
+    remindersEnabled: reminders.get('enabled', false),
+    hydrationMinutes: reminders.get('hydrationMinutes', 60),
+    hourlyReminder: reminders.get('hourly', false),
+    quietHoursStart: reminders.get('quietHoursStart', '22:00'),
+    quietHoursEnd: reminders.get('quietHoursEnd', '08:00')
+  };
+}
+
+function registerEditorReactions(context, provider, productivity) {
   const policy = new ReactionPolicy();
   const markActivity = () => policy.markActivity(Date.now());
 
@@ -181,8 +347,13 @@ function registerEditorReactions(context, provider) {
       provider.notify(exitCode === 0 ? 'taskSucceeded' : 'taskFailed');
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration('yuukaPet.relationship') || event.affectsConfiguration('yuukaPet.randomEvents')) {
+      if (event.affectsConfiguration('yuukaPet.relationship')
+        || event.affectsConfiguration('yuukaPet.randomEvents')
+        || event.affectsConfiguration('yuukaPet.appearance')) {
         provider.post('settings', { settings: getWebviewSettings() });
+      }
+      if (event.affectsConfiguration('yuukaPet.focus') || event.affectsConfiguration('yuukaPet.reminders')) {
+        void productivity.refreshSettings();
       }
     })
   );

@@ -4,17 +4,17 @@
 
 ## 安装
 
-1. 从 GitHub Releases 下载 `yuuka-vscode-pet-1.3.1.vsix`。
+1. 从 GitHub Releases 下载 `yuuka-vscode-pet-1.4.0.vsix`。
 2. 在 VS Code 中运行 `Extensions: Install from VSIX...`。
 3. 选择下载的 VSIX，然后运行 `Developer: Reload Window`。
 
 也可以在终端中安装：
 
 ```text
-code --install-extension yuuka-vscode-pet-1.3.1.vsix
+code --install-extension yuuka-vscode-pet-1.4.0.vsix
 ```
 
-当前版本：`1.3.1`。完整变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本：`1.4.0`。完整变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 使用
 
@@ -43,7 +43,19 @@ code --install-extension yuuka-vscode-pet-1.3.1.vsix
 
 可在 VS Code Settings 中搜索 `Yuuka VS Code Pet` 调整联动冷却、提醒时长、空闲时长、任务反馈、随机事件频率和心情系统开关。
 
-心情和亲密度仅影响低频台词与互动/空闲动作，保存在本机 Webview 状态中；可关闭或通过 `Reset Mood and Affinity` 清零。
+心情和亲密度仅影响低频台词与互动/空闲动作，保存在本机 Webview 状态中。“关系”页会显示当前状态，支持手动选择心情、将好感设置为 `0–100` 的任意整数、关闭系统或一键重置。
+
+“场景”页提供简洁办公室、千年风格和纯透明感三种本地背景。办公室采用与角色像素密度匹配的横向像素场景图；场景颜色会自动跟随 VS Code 深色或浅色主题，切换后即时生效。
+
+## 生产力工具
+
+- 专注、短休息和长休息计时，支持暂停、继续、结束和重置。
+- 计时由扩展宿主维护，关闭或隐藏桌宠视图后仍会继续。
+- 今日任务支持添加、完成、删除和选择当前专注任务。
+- 支持一次性提醒，以及可选的喝水和整点提醒。
+- 提供今日/本周专注次数、分钟、完成任务和连续天数统计。
+
+专注时长、休息时长、长休息间隔、循环提醒和静默时段均通过 VS Code Settings 配置。
 
 ## 设置
 
@@ -54,10 +66,15 @@ code --install-extension yuuka-vscode-pet-1.3.1.vsix
 - VS Code Task 结果反馈
 - 随机事件频率
 - 心情与亲密度开关
+- “关系”页中的心情与好感手动设置
+- 简洁办公室、千年风格和纯透明感背景
+- 专注、短休息和长休息时长
+- 长休息轮换间隔
+- 喝水/整点提醒与静默时段
 
 ## 隐私
 
-扩展不访问网络，不读取项目文件内容、文件名、终端文本或 Git 提交内容，不收集或上传数据，也不会自动执行任务、提交或 Git 操作。
+扩展运行时不访问网络，不读取项目文件内容、文件名、终端文本或 Git 提交内容，不收集或上传数据，也不会自动执行任务、提交或 Git 操作。场景背景均随扩展本地打包。
 
 详细说明见 [PRIVACY.md](PRIVACY.md)。
 

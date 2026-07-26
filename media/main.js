@@ -3,6 +3,25 @@
   const world = document.getElementById('world');
   const pet = document.getElementById('pet');
   const speech = document.getElementById('speech');
+  const timerPhase = document.getElementById('timer-phase');
+  const timerTask = document.getElementById('timer-task');
+  const timerDisplay = document.getElementById('timer-display');
+  const timerPrimary = document.getElementById('timer-primary');
+  const timerStop = document.getElementById('timer-stop');
+  const timerReset = document.getElementById('timer-reset');
+  const taskList = document.getElementById('task-list');
+  const taskEmpty = document.getElementById('task-empty');
+  const reminderList = document.getElementById('reminder-list');
+  const reminderEmpty = document.getElementById('reminder-empty');
+  const relationshipEnabled = document.getElementById('relationship-enabled');
+  const relationshipControls = document.getElementById('relationship-controls');
+  const moodSelect = document.getElementById('mood-select');
+  const affinityRange = document.getElementById('affinity-range');
+  const affinityNumber = document.getElementById('affinity-number');
+  const affinityOutput = document.getElementById('affinity-output');
+  const sceneSelect = document.getElementById('scene-select');
+  const sceneName = document.getElementById('scene-name');
+  const sceneDetail = document.getElementById('scene-detail');
   const dialogue = window.YUUKA_DIALOGUE || {};
   const persisted = vscode.getState() || {};
   const frameW = 72;
@@ -25,17 +44,20 @@
   const recentDialogue = [];
   let settings = {
     relationshipEnabled: true,
-    randomEventFrequency: 'low'
+    randomEventFrequency: 'low',
+    scene: 'millennium'
   };
   let relationship = {
-    mood: Number.isFinite(persisted.mood) ? persisted.mood : 0,
-    affinity: Number.isFinite(persisted.affinity) ? persisted.affinity : 0
+    mood: Number.isFinite(persisted.mood) ? Math.max(-2, Math.min(2, Math.round(persisted.mood))) : 0,
+    affinity: Number.isFinite(persisted.affinity) ? Math.max(0, Math.min(100, Math.round(persisted.affinity))) : 0
   };
   let state = 'idle';
   let frame = 0;
   let x = 0;
   let targetX = null;
   let workLocked = false;
+  let focusActive = false;
+  let productivity = null;
   let loopTimer = null;
   let oneShotTimer = null;
   let workReactionTimer = null;
@@ -52,17 +74,54 @@
     vscode.setState({ ...persisted, ...relationship });
   }
 
+  function renderRelationship() {
+    relationshipEnabled.checked = settings.relationshipEnabled;
+    relationshipControls.classList.toggle('disabled', !settings.relationshipEnabled);
+    for (const control of relationshipControls.querySelectorAll('input, select, button')) {
+      control.disabled = !settings.relationshipEnabled;
+    }
+    moodSelect.value = String(relationship.mood);
+    affinityRange.value = String(relationship.affinity);
+    affinityNumber.value = String(relationship.affinity);
+    affinityOutput.textContent = String(relationship.affinity);
+  }
+
+  function setRelationship(mood, affinity) {
+    relationship = {
+      mood: Math.max(-2, Math.min(2, Math.round(Number(mood) || 0))),
+      affinity: Math.max(0, Math.min(100, Math.round(Number(affinity) || 0)))
+    };
+    persistRelationship();
+    renderRelationship();
+  }
+
+  function renderScene() {
+    const scenes = {
+      office: ['简洁办公室', '柔和窗光与桌面边缘，保持安静的工作氛围。'],
+      millennium: ['千年风格', '蓝色网格与数据光效，呼应千年科技感。'],
+      transparent: ['纯透明感', '弱化装饰，让背景自然融入当前 VS Code 主题。']
+    };
+    const scene = Object.hasOwn(scenes, settings.scene) ? settings.scene : 'millennium';
+    settings.scene = scene;
+    world.dataset.scene = scene;
+    sceneSelect.value = scene;
+    sceneName.textContent = scenes[scene][0];
+    sceneDetail.textContent = scenes[scene][1];
+  }
+
   function adjustRelationship(moodDelta, affinityDelta) {
     if (!settings.relationshipEnabled) return;
     relationship.mood = Math.max(-2, Math.min(2, relationship.mood + moodDelta));
     relationship.affinity = Math.max(0, Math.min(100, relationship.affinity + affinityDelta));
     persistRelationship();
+    renderRelationship();
   }
 
   function settleMood() {
     if (!settings.relationshipEnabled || relationship.mood === 0) return;
     relationship.mood += relationship.mood > 0 ? -1 : 1;
     persistRelationship();
+    renderRelationship();
   }
 
   function relationshipDialogueCategory() {
@@ -165,6 +224,10 @@
   }
 
   function play(category = 'interaction') {
+    if (focusActive) {
+      reactToWorkInterruption();
+      return;
+    }
     workLocked = false;
     clearTimeout(workReactionTimer);
     const now = Date.now();
@@ -216,6 +279,8 @@
   function handleCommand(command, payload) {
     if (command === 'settings') {
       settings = { ...settings, ...(payload.settings || {}) };
+      renderRelationship();
+      renderScene();
       return;
     }
     if (command === 'saved') passiveOneShot('greet', 1100, 'saved');
@@ -236,10 +301,155 @@
     if (command === 'jump') passiveOneShot('jump', 1100, 'jump', true);
     if (command === 'think') passiveOneShot('think', 2400, 'think', true);
     if (command === 'resetRelationship') {
-      relationship = { mood: 0, affinity: 0 };
-      persistRelationship();
+      setRelationship(0, 0);
       if (!workLocked) passiveOneShot('greet', 1400, 'relationshipReset', true);
     }
+    if (command === 'productivityState') renderProductivity(payload.state, payload.restoreActive);
+    if (command === 'focusStarted') {
+      focusActive = true;
+      work();
+      sayFrom('focusStarted');
+    }
+    if (command === 'focusPaused') releaseFocus('focusPaused');
+    if (command === 'focusStopped') releaseFocus('focusStopped');
+    if (command === 'focusCompleted') {
+      focusActive = false;
+      workLocked = false;
+      adjustRelationship(2, 2);
+      oneShot('celebrate', 2600, chooseLine('focusCompleted'));
+    }
+    if (command === 'breakStarted') {
+      focusActive = false;
+      workLocked = false;
+      oneShot('greet', 1600, chooseLine('breakStarted'));
+    }
+    if (command === 'breakCompleted') {
+      focusActive = false;
+      workLocked = false;
+      oneShot('alert', 2200, chooseLine('breakCompleted'));
+    }
+    if (command === 'localTaskCompleted') {
+      adjustRelationship(1, 1);
+      if (focusActive || workLocked) sayFrom('taskCompletedDuringFocus');
+      else oneShot('celebrate', 2200, chooseLine('localTaskCompleted'));
+    }
+    if (command === 'reminderDue') passiveOneShot('alert', 2400, 'reminderDue', true);
+    if (command === 'hydrationReminder') passiveOneShot('alert', 2400, 'hydrationReminder', true);
+    if (command === 'hourlyReminder') passiveOneShot('greet', 1600, 'hourlyReminder');
+    if (command === 'productivityError') {
+      say(payload.text || chooseLine('interaction'));
+    }
+  }
+
+  function releaseFocus(category) {
+    focusActive = false;
+    workLocked = false;
+    clearTimeout(workReactionTimer);
+    targetX = null;
+    setState('idle');
+    sayFrom(category);
+  }
+
+  function renderProductivity(next, restoreActive = false) {
+    if (!next) return;
+    productivity = next;
+    const phaseLabels = { focus: '专注', shortBreak: '短休息', longBreak: '长休息' };
+    timerPhase.textContent = phaseLabels[next.timer.phase] || '专注';
+    timerTask.textContent = next.selectedTaskTitle || '未选择当前任务';
+    timerDisplay.textContent = formatDuration(next.timer.remainingMs);
+    timerPrimary.textContent = next.timer.status === 'running' ? '暂停'
+      : next.timer.status === 'paused' ? '继续' : '开始';
+    timerStop.disabled = next.timer.status === 'idle';
+    focusActive = next.timer.status === 'running' && next.timer.phase === 'focus';
+    if (restoreActive && focusActive) {
+      work();
+      sayFrom('focusRestored');
+    }
+    renderTasks(next.tasks || [], next.selectedTaskId);
+    renderReminders(next.reminders || []);
+    renderStats(next.stats);
+  }
+
+  function renderTasks(tasks, selectedTaskId) {
+    taskList.replaceChildren();
+    taskEmpty.hidden = tasks.length > 0;
+    for (const task of tasks) {
+      const item = document.createElement('li');
+      item.className = `item-row${task.completed ? ' completed' : ''}`;
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = task.completed;
+      checkbox.setAttribute('aria-label', `完成任务：${task.title}`);
+      checkbox.addEventListener('change', () => postProductivity('toggleTask', { id: task.id }));
+      const select = document.createElement('button');
+      select.className = 'icon-button secondary';
+      select.textContent = selectedTaskId === task.id ? '●' : '○';
+      select.title = selectedTaskId === task.id ? '取消当前任务' : '设为当前任务';
+      select.setAttribute('aria-pressed', String(selectedTaskId === task.id));
+      select.disabled = task.completed;
+      select.addEventListener('click', () => postProductivity('selectTask', { id: task.id }));
+      const title = document.createElement('span');
+      title.className = 'item-title';
+      title.textContent = task.title;
+      const remove = document.createElement('button');
+      remove.className = 'icon-button secondary';
+      remove.textContent = '×';
+      remove.title = '删除任务';
+      remove.setAttribute('aria-label', `删除任务：${task.title}`);
+      remove.addEventListener('click', () => postProductivity('deleteTask', { id: task.id }));
+      item.append(checkbox, select, title, remove);
+      taskList.append(item);
+    }
+  }
+
+  function renderReminders(reminders) {
+    reminderList.replaceChildren();
+    reminderEmpty.hidden = reminders.length > 0;
+    for (const reminder of reminders) {
+      const item = document.createElement('li');
+      item.className = 'item-row reminder-row';
+      const text = document.createElement('span');
+      text.className = 'item-title';
+      text.textContent = reminder.text;
+      const time = document.createElement('time');
+      time.dateTime = new Date(reminder.dueAt).toISOString();
+      time.textContent = formatReminderTime(reminder.dueAt);
+      const remove = document.createElement('button');
+      remove.className = 'icon-button secondary';
+      remove.textContent = '×';
+      remove.title = '删除提醒';
+      remove.setAttribute('aria-label', `删除提醒：${reminder.text}`);
+      remove.addEventListener('click', () => postProductivity('deleteReminder', { id: reminder.id }));
+      item.append(text, time, remove);
+      reminderList.append(item);
+    }
+  }
+
+  function renderStats(stats) {
+    if (!stats) return;
+    document.getElementById('today-focus').textContent = String(stats.today.focusSessions);
+    document.getElementById('today-minutes').textContent = String(stats.today.focusMinutes);
+    document.getElementById('today-tasks').textContent = String(stats.today.tasksCompleted);
+    document.getElementById('focus-streak').textContent = String(stats.streak);
+    document.getElementById('week-minutes').textContent = String(stats.week.focusMinutes);
+    document.getElementById('week-tasks').textContent = String(stats.week.tasksCompleted);
+  }
+
+  function formatDuration(milliseconds) {
+    const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  function formatReminderTime(dueAt) {
+    return new Date(dueAt).toLocaleString('zh-CN', {
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  function postProductivity(action, payload = {}) {
+    vscode.postMessage({ type: 'productivity', action, ...payload });
   }
 
   function maybeRunRandomEvent() {
@@ -330,17 +540,72 @@
   document.getElementById('play').addEventListener('click', () => play('interaction'));
   document.getElementById('work').addEventListener('click', work);
   document.getElementById('reset').addEventListener('click', () => {
+    if (focusActive) {
+      reactToWorkInterruption();
+      return;
+    }
     workLocked = false;
     clearTimeout(workReactionTimer);
     targetX = null;
     place(maxX() / 2);
     oneShot('greet', 1200, chooseLine('reset'));
   });
+  for (const tab of document.querySelectorAll('.tab')) {
+    tab.addEventListener('click', () => {
+      for (const candidate of document.querySelectorAll('.tab')) {
+        const active = candidate === tab;
+        candidate.classList.toggle('active', active);
+        candidate.setAttribute('aria-selected', String(active));
+        document.getElementById(candidate.dataset.panel).hidden = !active;
+        document.getElementById(candidate.dataset.panel).classList.toggle('active', active);
+      }
+    });
+  }
+  timerPrimary.addEventListener('click', () => {
+    postProductivity(productivity?.timer.status === 'running' ? 'pause' : 'start');
+  });
+  timerStop.addEventListener('click', () => postProductivity('stop'));
+  timerReset.addEventListener('click', () => postProductivity('reset'));
+  document.getElementById('task-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const input = document.getElementById('task-input');
+    postProductivity('addTask', { title: input.value });
+    input.value = '';
+  });
+  document.getElementById('reminder-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const input = document.getElementById('reminder-input');
+    const time = document.getElementById('reminder-time');
+    postProductivity('addReminder', { text: input.value, dueAt: new Date(time.value).getTime() });
+    input.value = '';
+  });
+  document.getElementById('clear-stats').addEventListener('click', () => postProductivity('clearStats'));
+  relationshipEnabled.addEventListener('change', () => {
+    settings.relationshipEnabled = relationshipEnabled.checked;
+    renderRelationship();
+    vscode.postMessage({ type: 'relationshipSettings', enabled: relationshipEnabled.checked });
+  });
+  moodSelect.addEventListener('change', () => setRelationship(moodSelect.value, relationship.affinity));
+  affinityRange.addEventListener('input', () => setRelationship(relationship.mood, affinityRange.value));
+  affinityNumber.addEventListener('change', () => setRelationship(relationship.mood, affinityNumber.value));
+  document.getElementById('reset-relationship').addEventListener('click', () => {
+    setRelationship(0, 0);
+    if (!workLocked) passiveOneShot('greet', 1400, 'relationshipReset', true);
+  });
+  sceneSelect.addEventListener('change', () => {
+    settings.scene = sceneSelect.value;
+    renderScene();
+    vscode.postMessage({ type: 'appearanceSettings', scene: settings.scene });
+  });
   window.addEventListener('resize', () => place(x));
   window.addEventListener('message', (event) => {
     if (event.data.command === 'play') play('interaction');
     if (event.data.command === 'work') work();
     if (event.data.command === 'reset') {
+      if (focusActive) {
+        reactToWorkInterruption();
+        return;
+      }
       workLocked = false;
       clearTimeout(workReactionTimer);
       targetX = null;
@@ -352,6 +617,8 @@
 
   place(maxX() / 2);
   setState('idle');
+  renderRelationship();
+  renderScene();
   randomEventTimer = setInterval(maybeRunRandomEvent, 60000);
   window.addEventListener('beforeunload', () => {
     clearTimeout(loopTimer);

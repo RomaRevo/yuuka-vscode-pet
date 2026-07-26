@@ -73,6 +73,25 @@ window.YUUKA_DIALOGUE = Object.freeze({
   jump: ['状态良好，准备继续！'],
   think: ['让我重新核对一下条件。'],
   work: ['正在核对数据，先不要打扰我。'],
+  focusStarted: ['专注计时开始。我会在这里一起处理计划。'],
+  focusRestored: ['计时还在继续，保持现在的专注。'],
+  focusPaused: ['计时已暂停。确认状态后再继续。'],
+  focusStopped: ['本轮计时已经结束，进度不会计入统计。'],
+  focusCompleted: [
+    '本轮专注完成！按计划休息一下吧。',
+    '时间到，这一轮执行得很好。',
+    '专注记录完成，可以稍微放松一下了。'
+  ],
+  breakStarted: ['休息计时开始。现在先离开屏幕一会儿吧。'],
+  breakCompleted: ['休息结束。准备开始下一项计划吧。'],
+  localTaskCompleted: [
+    '今日任务完成一项，进度表已经更新。',
+    '很好，这一项可以正式划掉了。'
+  ],
+  taskCompletedDuringFocus: ['任务已完成。计时还在继续，先保持专注。'],
+  reminderDue: ['提醒时间到了，请确认一下安排。'],
+  hydrationReminder: ['喝点水，也活动一下肩颈吧。'],
+  hourlyReminder: ['整点了，检查一下当前计划的进度吧。'],
   interrupted: ['我正在处理工作，不要用走来走去打断我！'],
   reset: ['位置已经重新调整好了。'],
   relationshipReset: ['记录已经重置。我们重新开始安排吧。'],

@@ -14,12 +14,23 @@ class FakeElement {
     this.clientHeight = 156;
     this.offsetWidth = 144;
     this.textContent = '';
-    this.classList = { add() {}, remove() {} };
+    this.value = '';
+    this.checked = false;
+    this.hidden = false;
+    this.disabled = false;
+    this.dataset = {};
+    this.children = [];
+    this.classList = { add() {}, remove() {}, toggle() {} };
   }
 
   addEventListener(type, listener) {
     this.listeners.set(type, listener);
   }
+
+  setAttribute() {}
+  append(...children) { this.children.push(...children); }
+  replaceChildren(...children) { this.children = children; }
+  querySelectorAll() { return []; }
 
   getBoundingClientRect() {
     return { left: 0, top: 0 };
@@ -35,6 +46,38 @@ function loadWebview() {
     ['world', new FakeElement()],
     ['pet', new FakeElement()],
     ['speech', new FakeElement()],
+    ['timer-phase', new FakeElement()],
+    ['timer-task', new FakeElement()],
+    ['timer-display', new FakeElement()],
+    ['timer-primary', new FakeElement()],
+    ['timer-stop', new FakeElement()],
+    ['timer-reset', new FakeElement()],
+    ['task-list', new FakeElement()],
+    ['task-empty', new FakeElement()],
+    ['task-form', new FakeElement()],
+    ['task-input', new FakeElement()],
+    ['reminder-list', new FakeElement()],
+    ['reminder-empty', new FakeElement()],
+    ['reminder-form', new FakeElement()],
+    ['reminder-input', new FakeElement()],
+    ['reminder-time', new FakeElement()],
+    ['today-focus', new FakeElement()],
+    ['today-minutes', new FakeElement()],
+    ['today-tasks', new FakeElement()],
+    ['focus-streak', new FakeElement()],
+    ['week-minutes', new FakeElement()],
+    ['week-tasks', new FakeElement()],
+    ['clear-stats', new FakeElement()],
+    ['relationship-enabled', new FakeElement()],
+    ['relationship-controls', new FakeElement()],
+    ['mood-select', new FakeElement()],
+    ['affinity-range', new FakeElement()],
+    ['affinity-number', new FakeElement()],
+    ['affinity-output', new FakeElement()],
+    ['reset-relationship', new FakeElement()],
+    ['scene-select', new FakeElement()],
+    ['scene-name', new FakeElement()],
+    ['scene-detail', new FakeElement()],
     ['play', new FakeElement()],
     ['work', new FakeElement()],
     ['reset', new FakeElement()]
@@ -49,7 +92,11 @@ function loadWebview() {
       setState() {},
       postMessage: (message) => posted.push(message)
     }),
-    document: { getElementById: (id) => elements.get(id) },
+    document: {
+      getElementById: (id) => elements.get(id),
+      querySelectorAll: () => [],
+      createElement: () => new FakeElement()
+    },
     window: {
       YUUKA_DIALOGUE: {
         interaction: ['interaction'], work: ['work'], interrupted: ['interrupted'],
@@ -111,4 +158,65 @@ test('mouse movement only changes direction after a short dwell', () => {
   assert.ok(dwellTimer);
   dwellTimer.callback();
   assert.notEqual(pet.style.backgroundPosition, initialFrame);
+});
+
+test('productivity snapshot renders and timer control posts an action', () => {
+  const webview = loadWebview();
+  webview.message({ data: {
+    command: 'productivityState',
+    state: {
+      tasks: [], selectedTaskId: null, selectedTaskTitle: '', reminders: [],
+      timer: { phase: 'focus', status: 'idle', remainingMs: 25 * 60000 },
+      stats: {
+        today: { focusSessions: 0, focusMinutes: 0, tasksCompleted: 0 },
+        week: { focusSessions: 0, focusMinutes: 0, tasksCompleted: 0 },
+        streak: 0
+      }
+    }
+  } });
+  assert.equal(webview.elements.get('timer-display').textContent, '25:00');
+  webview.elements.get('timer-primary').listeners.get('click')();
+  assert.equal(webview.posted.some(({ type, action }) => type === 'productivity' && action === 'start'), true);
+});
+
+test('relationship controls expose and clamp manual mood and affinity settings', () => {
+  const webview = loadWebview();
+  webview.message({ data: { command: 'settings', settings: { relationshipEnabled: true } } });
+
+  const mood = webview.elements.get('mood-select');
+  const affinity = webview.elements.get('affinity-number');
+  mood.value = '-2';
+  mood.listeners.get('change')();
+  affinity.value = '140';
+  affinity.listeners.get('change')();
+
+  assert.equal(mood.value, '-2');
+  assert.equal(affinity.value, '100');
+  assert.equal(webview.elements.get('affinity-output').textContent, '100');
+
+  const enabled = webview.elements.get('relationship-enabled');
+  enabled.checked = false;
+  enabled.listeners.get('change')();
+  assert.equal(webview.posted.some((message) => (
+    message.type === 'relationshipSettings' && message.enabled === false
+  )), true);
+
+  webview.elements.get('reset-relationship').listeners.get('click')();
+  assert.equal(mood.value, '0');
+  assert.equal(affinity.value, '0');
+});
+
+test('scene selection updates the local background and posts the setting', () => {
+  const webview = loadWebview();
+  webview.message({ data: { command: 'settings', settings: { scene: 'office' } } });
+  assert.equal(webview.elements.get('world').dataset.scene, 'office');
+  assert.equal(webview.elements.get('scene-name').textContent, '简洁办公室');
+
+  const scene = webview.elements.get('scene-select');
+  scene.value = 'transparent';
+  scene.listeners.get('change')();
+  assert.equal(webview.elements.get('world').dataset.scene, 'transparent');
+  assert.equal(webview.posted.some((message) => (
+    message.type === 'appearanceSettings' && message.scene === 'transparent'
+  )), true);
 });

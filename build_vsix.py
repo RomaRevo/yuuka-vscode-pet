@@ -72,6 +72,8 @@ def main() -> None:
         "package.json",
         "extension.js",
         "reactionPolicy.js",
+        "productivityState.js",
+        "productivityController.js",
         "README.md",
         "PRIVACY.md",
         "CHANGELOG.md",
@@ -80,6 +82,7 @@ def main() -> None:
         "media/main.js",
         "media/activity-icon.svg",
         "media/icon.png",
+        "media/scene-office-v1.png",
         "media/spritesheet.png",
     ]
     with zipfile.ZipFile(vsix, "w", zipfile.ZIP_DEFLATED) as archive:
