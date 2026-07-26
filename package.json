@@ -1,0 +1,157 @@
+{
+  "name": "yuuka-vscode-pet",
+  "displayName": "Yuuka VS Code Pet",
+  "description": "早濑优香独立 VS Code 桌宠：像素动画、编辑器联动、任务反馈与互动。",
+  "version": "1.3.1",
+  "publisher": "local-yuuka-pet",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onView:yuukaPet.view",
+    "onCommand:yuukaPet.show",
+    "onCommand:yuukaPet.play",
+    "onCommand:yuukaPet.work",
+    "onCommand:yuukaPet.jump",
+    "onCommand:yuukaPet.think",
+    "onCommand:yuukaPet.celebrateMilestone",
+    "onCommand:yuukaPet.resetRelationship"
+  ],
+  "icon": "media/icon.png",
+  "contributes": {
+    "commands": [
+      {
+        "command": "yuukaPet.show",
+        "title": "Yuuka Pet: Show Yuuka",
+        "category": "Yuuka Pet"
+      },
+      {
+        "command": "yuukaPet.play",
+        "title": "Yuuka Pet: Play with Yuuka",
+        "category": "Yuuka Pet"
+      },
+      {
+        "command": "yuukaPet.work",
+        "title": "Yuuka Pet: Ask Yuuka to Work",
+        "category": "Yuuka Pet"
+      },
+      {
+        "command": "yuukaPet.reset",
+        "title": "Yuuka Pet: Reset Position",
+        "category": "Yuuka Pet"
+      },
+      {
+        "command": "yuukaPet.jump",
+        "title": "Yuuka Pet: Jump",
+        "category": "Yuuka Pet"
+      },
+      {
+        "command": "yuukaPet.think",
+        "title": "Yuuka Pet: Think",
+        "category": "Yuuka Pet"
+      },
+      {
+        "command": "yuukaPet.celebrateMilestone",
+        "title": "Yuuka Pet: Celebrate Milestone",
+        "category": "Yuuka Pet"
+      },
+      {
+        "command": "yuukaPet.resetRelationship",
+        "title": "Yuuka Pet: Reset Mood and Affinity",
+        "category": "Yuuka Pet"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "yuukaPet",
+          "title": "优香桌宠",
+          "icon": "media/activity-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "yuukaPet": [
+        {
+          "type": "webview",
+          "id": "yuukaPet.view",
+          "name": "早濑优香"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "yuukaPet.play",
+          "when": "view == yuukaPet.view",
+          "group": "navigation@1"
+        },
+        {
+          "command": "yuukaPet.work",
+          "when": "view == yuukaPet.view",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Yuuka VS Code Pet",
+      "properties": {
+        "yuukaPet.reactions.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable passive editor and task reactions."
+        },
+        "yuukaPet.reactions.saveCooldownSeconds": {
+          "type": "number",
+          "default": 90,
+          "minimum": 0,
+          "maximum": 3600,
+          "description": "Minimum time between save reactions."
+        },
+        "yuukaPet.reactions.continuousTypingMinutes": {
+          "type": "number",
+          "default": 45,
+          "minimum": 5,
+          "maximum": 240,
+          "description": "Continuous typing time before a rest reminder."
+        },
+        "yuukaPet.reactions.idleMinutes": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 120,
+          "description": "Editor inactivity time before an idle reaction."
+        },
+        "yuukaPet.reactions.focusCooldownMinutes": {
+          "type": "number",
+          "default": 30,
+          "minimum": 1,
+          "maximum": 240,
+          "description": "Minimum time between window focus greetings."
+        },
+        "yuukaPet.reactions.taskResults": {
+          "type": "boolean",
+          "default": true,
+          "description": "React to reliable VS Code task exit codes without reading task output."
+        },
+        "yuukaPet.randomEvents.frequency": {
+          "type": "string",
+          "enum": ["off", "low", "normal", "high"],
+          "default": "low",
+          "description": "Frequency of local budget and schedule events while idle."
+        },
+        "yuukaPet.relationship.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable local mood and affinity changes from interactions."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "check": "node --check extension.js && node --check reactionPolicy.js && node --check media/dialogue.js && node --check media/main.js && node --test"
+  }
+}

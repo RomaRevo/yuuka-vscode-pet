@@ -1,0 +1,7 @@
+.git/**
+.vscode/**
+dist/**
+test/**
+__pycache__/**
+*.pyc
+*.vsix
