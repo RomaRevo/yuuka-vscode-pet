@@ -1,16 +1,39 @@
 # Changelog
 
-## 1.4.0
+## 1.4.0 - 生产力核心与个性化场景
 
-- Add persistent focus, short-break, and long-break timers that continue while the
-  Webview is hidden.
-- Add workspace-scoped tasks with current-task selection and completion feedback.
-- Add one-time reminders, optional hydration/hourly reminders, and quiet hours.
-- Add local today/week focus statistics and streak tracking with a clear action.
-- Add a visible Relationship panel for mood selection, manual `0-100` affinity
-  adjustment, enable/disable control, and reset.
-- Add theme-aware Office, Millennium, and transparent-style local background scenes;
-  the Office scene uses a character-scaled farming-RPG-style pixel environment.
+### 专注计时
+
+- 新增专注、短休息和长休息三阶段计时器，支持开始、暂停、继续、提前结束和重置。
+- 使用绝对结束时间维护运行中的计时；隐藏或重开 Webview 后仍可恢复。
+- 每完成设定数量的专注轮次后进入长休息；专注完成会庆祝并更新本地统计。
+- 专注期间保持工作锁定，点击角色、地面或复位不会打断计时。
+
+### 今日任务
+
+- 新增工作区范围的今日任务列表，支持添加、完成、删除和选择当前专注任务。
+- 完成反馈与庆祝动画接入角色状态；同一任务只计入一次完成统计。
+- 不扫描仓库 TODO、源码、文件名或其他项目内容。
+
+### 提醒与统计
+
+- 支持一次性提醒，以及默认关闭的喝水提醒和整点提醒。
+- 支持跨午夜静默时段；静默期间错过的提醒会在结束后处理，同一时间提醒会合并。
+- 新增今日/本周专注次数、分钟、完成任务数和连续专注天数，并提供清除入口。
+- 聚合统计只保存日期和数字，不保存任务文字、提醒文字或代码内容。
+
+### 关系与场景
+
+- 新增“关系”页：五档心情、`0–100` 好感滑块/数字框、关闭和重置入口。
+- 关系值只影响低频台词、互动动作和待机动作，数据仅保存在本机 Webview 状态。
+- 新增简洁办公室、千年风格和纯透明感三种本地场景；办公室背景与 `72×78` 角色帧和 `2×` 显示倍率匹配。
+- 场景使用 VS Code 主题变量适配深色/浅色主题，运行时不加载网络资源。
+
+### 隐私与工程质量
+
+- 扩展运行时不访问网络，不读取源码、文档内容、文件名、工作区路径、终端文本或 Git 提交内容。
+- 任务、提醒和计时器按工作区保存；全局统计只保存日期和数字。
+- 构建脚本纳入生产力控制器和办公室场景资源，回归测试覆盖计时、统计、任务、提醒、关系、场景和工作锁定。
 
 ## 1.3.1
 
