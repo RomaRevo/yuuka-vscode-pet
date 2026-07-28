@@ -23,6 +23,8 @@
   const sceneName = document.getElementById('scene-name');
   const sceneDetail = document.getElementById('scene-detail');
   const dialogue = window.YUUKA_DIALOGUE || {};
+  const relationshipDialogue = window.YUUKA_RELATIONSHIP_DIALOGUE || {};
+  const dialoguePolicy = window.YUUKA_DIALOGUE_POLICY;
   const persisted = vscode.getState() || {};
   const frameW = 72;
   const frameH = 78;
@@ -124,29 +126,23 @@
     renderRelationship();
   }
 
-  function relationshipDialogueCategory() {
-    if (!settings.relationshipEnabled) return 'interaction';
-    if (relationship.mood < 0) return 'moodLow';
-    if (relationship.affinity >= 10) return 'affinityHigh';
-    if (relationship.mood > 0) return 'moodHigh';
-    return 'interaction';
-  }
-
   function relationshipAction() {
-    if (!settings.relationshipEnabled) return 'greet';
-    if (relationship.mood < 0) return 'think';
-    if (relationship.mood > 0 || relationship.affinity >= 10) return 'celebrate';
-    return 'greet';
+    return dialoguePolicy?.actionFor(relationship, settings.relationshipEnabled) || 'greet';
   }
 
   function idleAction() {
-    if (settings.relationshipEnabled && relationship.mood < 0) return 'think';
-    if (settings.relationshipEnabled && relationship.mood > 0) return 'greet';
-    return Math.random() > 0.5 ? 'lookLeft' : 'lookRight';
+    return dialoguePolicy?.idleActionFor(relationship, settings.relationshipEnabled)
+      || (Math.random() > 0.5 ? 'lookLeft' : 'lookRight');
   }
 
   function chooseLine(category) {
-    const options = dialogue[category] || dialogue.interaction || ['……'];
+    const options = dialoguePolicy?.candidatesFor(
+      dialogue,
+      relationshipDialogue,
+      category,
+      relationship,
+      settings.relationshipEnabled
+    ) || dialogue[category] || dialogue.interaction || ['……'];
     const candidates = options.filter((line) => !recentDialogue.includes(line));
     const pool = candidates.length ? candidates : options;
     const line = pool[Math.floor(Math.random() * pool.length)];
@@ -241,10 +237,11 @@
     pet.classList.remove('bounce');
     void pet.offsetWidth;
     pet.classList.add('bounce');
-    const dialogueCategory = category === 'interaction' ? relationshipDialogueCategory() : category;
     const action = category === 'poke' ? 'alert' : category === 'petHead' ? 'greet' : relationshipAction();
+    // Speak from the current relationship state; apply this interaction's effect afterward.
+    const line = chooseLine(category);
     adjustRelationship(category === 'poke' ? -1 : 1, category === 'petHead' ? 2 : category === 'poke' ? 0 : 1);
-    oneShot(action, 1600, chooseLine(dialogueCategory));
+    oneShot(action, 1600, line);
   }
 
   function work() {

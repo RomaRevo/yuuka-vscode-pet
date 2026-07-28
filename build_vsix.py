@@ -79,6 +79,8 @@ def main() -> None:
         "CHANGELOG.md",
         "media/style.css",
         "media/dialogue.js",
+        "media/dialoguePolicy.js",
+        "media/relationshipDialogue.js",
         "media/main.js",
         "media/activity-icon.svg",
         "media/icon.png",

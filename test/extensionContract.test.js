@@ -50,11 +50,16 @@ test('P1 productivity commands and settings are contributed', () => {
 
 test('relationship controls are visible in the pet view', () => {
   const extensionSource = fs.readFileSync(path.resolve(__dirname, '../extension.js'), 'utf8');
+  const buildSource = fs.readFileSync(path.resolve(__dirname, '../build_vsix.py'), 'utf8');
   assert.match(extensionSource, /data-panel="relationship-panel">关系/);
   assert.match(extensionSource, /id="mood-select"/);
   assert.match(extensionSource, /id="affinity-range"/);
   assert.match(extensionSource, /id="affinity-number"/);
   assert.match(extensionSource, /type === 'relationshipSettings'/);
+  assert.match(extensionSource, /dialoguePolicy\.js/);
+  assert.match(extensionSource, /relationshipDialogue\.js/);
+  assert.match(buildSource, /media\/dialoguePolicy\.js/);
+  assert.match(buildSource, /media\/relationshipDialogue\.js/);
 });
 
 test('theme-aware local scenes are visible in the pet view', () => {

@@ -1,20 +1,20 @@
 # Yuuka VS Code Pet
 
-独立的早濑优香 VS Code 桌宠扩展。1.4.0 在 V8 Q 版像素动画的基础上加入专注计时、今日任务、提醒、统计、关系设置和主题场景；扩展不依赖 VS Code Pets 或 Codex Pets。
+独立的早濑优香 VS Code 桌宠扩展。1.4.1 在 V8 Q 版像素动画与生产力功能的基础上，完善了贴合角色人设的心情/好感台词系统；扩展不依赖 VS Code Pets 或 Codex Pets。
 
 ## 安装
 
-1. 从 [GitHub Releases](https://github.com/RomaRevo/yuuka-vscode-pet/releases/tag/v1.4.0) 下载 `yuuka-vscode-pet-1.4.0.vsix`。
+1. 从 [GitHub Releases](https://github.com/RomaRevo/yuuka-vscode-pet/releases/tag/v1.4.1) 下载 `yuuka-vscode-pet-1.4.1.vsix`。
 2. 在 VS Code 中运行 `Extensions: Install from VSIX...`。
 3. 选择 VSIX，安装后运行 `Developer: Reload Window`。
 
 也可以在终端安装：
 
 ```text
-code --install-extension yuuka-vscode-pet-1.4.0.vsix
+code --install-extension yuuka-vscode-pet-1.4.1.vsix
 ```
 
-当前扩展版本：`1.4.0`。完整变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+当前扩展版本：`1.4.1`。完整变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 快速开始
 
@@ -60,7 +60,7 @@ code --install-extension yuuka-vscode-pet-1.4.0.vsix
 
 ## 关系与场景
 
-“关系”页支持五档心情（很开心、开心、平静、低落、很低落）和 `0–100` 整数好感，可用滑块或数字框设置，也可关闭关系系统或重置为平静/`0` 好感。关系值只影响低频台词、互动动作和待机动作。
+“关系”页支持五档心情（很开心、开心、平静、低落、很低落）和 `0–100` 整数好感，可用滑块或数字框设置，也可关闭关系系统或重置为平静/`0` 好感。互动、摸头、轻戳和待机会按心情与四档好感（生疏、熟悉、信任、亲近）组合选择不同的原创台词；关系值不影响任务、提醒和计时提示的清晰度。
 
 “场景”页提供简洁办公室、千年风格和纯透明感三种本地背景。办公室背景匹配 `72×78` 逻辑帧与 `2×` 显示倍率，颜色随 VS Code 深色/浅色主题适配。
 

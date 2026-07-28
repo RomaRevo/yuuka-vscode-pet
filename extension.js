@@ -64,6 +64,8 @@ class YuukaViewProvider {
     const nonce = getNonce();
     const spriteUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'spritesheet.png'));
     const dialogueUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'dialogue.js'));
+    const dialoguePolicyUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'dialoguePolicy.js'));
+    const relationshipDialogueUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'relationshipDialogue.js'));
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'main.js'));
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'style.css'));
     const csp = [
@@ -190,6 +192,8 @@ class YuukaViewProvider {
     </section>
   </section>
   <script nonce="${nonce}" src="${dialogueUri}"></script>
+  <script nonce="${nonce}" src="${dialoguePolicyUri}"></script>
+  <script nonce="${nonce}" src="${relationshipDialogueUri}"></script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

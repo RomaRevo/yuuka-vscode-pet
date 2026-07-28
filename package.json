@@ -2,7 +2,7 @@
   "name": "yuuka-vscode-pet",
   "displayName": "Yuuka VS Code Pet",
   "description": "早濑优香独立 VS Code 桌宠：像素动画、专注计时、任务提醒、编辑器联动与互动。",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "publisher": "local-yuuka-pet",
   "license": "UNLICENSED",
   "engines": {
@@ -245,6 +245,6 @@
     }
   },
   "scripts": {
-    "check": "node --check extension.js && node --check reactionPolicy.js && node --check productivityState.js && node --check productivityController.js && node --check media/dialogue.js && node --check media/main.js && node --test"
+    "check": "node --check extension.js && node --check reactionPolicy.js && node --check productivityState.js && node --check productivityController.js && node --check media/dialogue.js && node --check media/dialoguePolicy.js && node --check media/relationshipDialogue.js && node --check media/main.js && node --test"
   }
 }

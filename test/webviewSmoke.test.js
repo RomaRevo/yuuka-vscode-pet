@@ -118,6 +118,16 @@ function loadWebview() {
     Date
   };
   vm.runInNewContext(
+    fs.readFileSync(path.resolve(__dirname, '../media/dialoguePolicy.js'), 'utf8'),
+    context,
+    { filename: 'dialoguePolicy.js' }
+  );
+  vm.runInNewContext(
+    fs.readFileSync(path.resolve(__dirname, '../media/relationshipDialogue.js'), 'utf8'),
+    context,
+    { filename: 'relationshipDialogue.js' }
+  );
+  vm.runInNewContext(
     fs.readFileSync(path.resolve(__dirname, '../media/main.js'), 'utf8'),
     context,
     { filename: 'main.js' }
@@ -204,6 +214,19 @@ test('relationship controls expose and clamp manual mood and affinity settings',
   webview.elements.get('reset-relationship').listeners.get('click')();
   assert.equal(mood.value, '0');
   assert.equal(affinity.value, '0');
+});
+
+test('manual relationship values select distinct interaction dialogue', () => {
+  const webview = loadWebview();
+  const mood = webview.elements.get('mood-select');
+  const affinity = webview.elements.get('affinity-number');
+
+  mood.value = '-2';
+  mood.listeners.get('change')();
+  affinity.value = '100';
+  affinity.listeners.get('change')();
+  webview.message({ data: { command: 'play' } });
+  assert.equal(webview.elements.get('speech').textContent, '别以为靠近一点就能蒙混过关……我只是暂时不想凶老师。');
 });
 
 test('scene selection updates the local background and posts the setting', () => {
