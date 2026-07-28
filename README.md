@@ -1,24 +1,24 @@
 # Yuuka VS Code Pet
 
-独立的早濑优香 VS Code 桌宠扩展。1.4.1 在 V8 Q 版像素动画与生产力功能的基础上，完善了贴合角色人设的心情/好感台词系统；扩展不依赖 VS Code Pets 或 Codex Pets。
+独立的早濑优香 VS Code 桌宠扩展。1.4.2 将扩展显示名调整为“桌宠：像素小优香”，并完善了温和、多样的生产力情景台词；扩展不依赖 VS Code Pets 或 Codex Pets。
 
 ## 安装
 
-1. 从 [GitHub Releases](https://github.com/RomaRevo/yuuka-vscode-pet/releases/tag/v1.4.1) 下载 `yuuka-vscode-pet-1.4.1.vsix`。
+1. 从 [GitHub Releases](https://github.com/RomaRevo/yuuka-vscode-pet/releases/tag/v1.4.2) 下载 `yuuka-vscode-pet-1.4.2.vsix`。
 2. 在 VS Code 中运行 `Extensions: Install from VSIX...`。
 3. 选择 VSIX，安装后运行 `Developer: Reload Window`。
 
 也可以在终端安装：
 
 ```text
-code --install-extension yuuka-vscode-pet-1.4.1.vsix
+code --install-extension yuuka-vscode-pet-1.4.2.vsix
 ```
 
-当前扩展版本：`1.4.1`。完整变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+当前扩展版本：`1.4.2`。完整变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 快速开始
 
-安装后点击活动栏中的“优香桌宠”图标，打开 `早濑优香` 视图。主区域显示桌宠和台词，下方按钮提供互动、工作和位置复位。
+安装后点击活动栏中的“桌宠”图标，打开“像素小优香”视图。主区域显示桌宠和台词，下方按钮提供互动、工作和位置复位。
 
 - 点击头部：摸头，会影响本地心情/好感。
 - 点击身体：轻戳，连续快速操作会触发冷却和生气反馈。

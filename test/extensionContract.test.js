@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -27,6 +28,28 @@ test('P2 commands and settings are contributed', () => {
   assert.equal(settings['yuukaPet.relationship.enabled'].default, true);
   assert.equal(settings['yuukaPet.appearance.scene'].default, 'millennium');
   assert.deepEqual(settings['yuukaPet.appearance.scene'].enum, ['office', 'millennium', 'transparent']);
+});
+
+test('the compact Chinese pet title does not add duplicate view-title actions', () => {
+  assert.equal(packageJson.displayName, '桌宠：像素小优香');
+  assert.equal(packageJson.contributes.viewsContainers.activitybar[0].title, '桌宠');
+  assert.equal(packageJson.contributes.views.yuukaPet[0].name, '像素小优香');
+  assert.equal(Object.hasOwn(packageJson.contributes, 'menus'), false);
+});
+
+test('contextual dialogue offers varied and gentle work-lock feedback', () => {
+  const context = { window: {} };
+  vm.runInNewContext(
+    fs.readFileSync(path.join(root, 'media/dialogue.js'), 'utf8'),
+    context,
+    { filename: 'dialogue.js' }
+  );
+  const dialogue = context.window.YUUKA_DIALOGUE;
+  for (const [category, lines] of Object.entries(dialogue)) {
+    assert.equal(lines.length >= 3, true, `${category} should have at least three choices`);
+  }
+  assert.equal(dialogue.interrupted.length >= 5, true);
+  assert.equal(dialogue.interrupted.includes('我正在处理工作，不要用走来走去打断我！'), false);
 });
 
 test('P1 productivity commands and settings are contributed', () => {

@@ -1,8 +1,8 @@
 {
   "name": "yuuka-vscode-pet",
-  "displayName": "Yuuka VS Code Pet",
+  "displayName": "桌宠：像素小优香",
   "description": "早濑优香独立 VS Code 桌宠：像素动画、专注计时、任务提醒、编辑器联动与互动。",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "publisher": "local-yuuka-pet",
   "license": "UNLICENSED",
   "engines": {
@@ -93,7 +93,7 @@
       "activitybar": [
         {
           "id": "yuukaPet",
-          "title": "优香桌宠",
+          "title": "桌宠",
           "icon": "media/activity-icon.svg"
         }
       ]
@@ -103,21 +103,7 @@
         {
           "type": "webview",
           "id": "yuukaPet.view",
-          "name": "早濑优香"
-        }
-      ]
-    },
-    "menus": {
-      "view/title": [
-        {
-          "command": "yuukaPet.play",
-          "when": "view == yuukaPet.view",
-          "group": "navigation@1"
-        },
-        {
-          "command": "yuukaPet.work",
-          "when": "view == yuukaPet.view",
-          "group": "navigation@2"
+          "name": "像素小优香"
         }
       ]
     },
