@@ -75,6 +75,9 @@ function loadWebview() {
     ['affinity-number', new FakeElement()],
     ['affinity-output', new FakeElement()],
     ['reset-relationship', new FakeElement()],
+    ['outfit-select', new FakeElement()],
+    ['outfit-name', new FakeElement()],
+    ['outfit-detail', new FakeElement()],
     ['scene-select', new FakeElement()],
     ['scene-name', new FakeElement()],
     ['scene-detail', new FakeElement()],
@@ -242,4 +245,56 @@ test('scene selection updates the local background and posts the setting', () =>
   assert.equal(webview.posted.some((message) => (
     message.type === 'appearanceSettings' && message.scene === 'transparent'
   )), true);
+});
+
+test('pajama appearance uses the v2 horizontal cardinals and posts outfit changes', () => {
+  const webview = loadWebview();
+  const world = webview.elements.get('world');
+  const pet = webview.elements.get('pet');
+
+  webview.message({ data: { command: 'settings', settings: { outfit: 'pajama' } } });
+  assert.equal(world.dataset.outfit, 'pajama');
+  assert.equal(webview.elements.get('outfit-name').textContent, '睡衣');
+
+  world.listeners.get('pointermove')({ clientX: 700 });
+  const dwellTimer = [...webview.timers.values()].find(({ delay }) => delay === 450);
+  dwellTimer.callback();
+  assert.equal(pet.style.backgroundPosition, '-576px -1404px');
+
+  const returnTimer = [...webview.timers.values()].find(({ delay }) => delay === 1400);
+  returnTimer.callback();
+  world.listeners.get('pointermove')({ clientX: 0 });
+  const leftDwellTimer = [...webview.timers.values()].filter(({ delay }) => delay === 450).at(-1);
+  leftDwellTimer.callback();
+  assert.equal(pet.style.backgroundPosition, '-576px -1560px');
+
+  const outfit = webview.elements.get('outfit-select');
+  outfit.value = 'classic';
+  outfit.listeners.get('change')();
+  assert.equal(world.dataset.outfit, 'classic');
+  assert.equal(webview.posted.some((message) => (
+    message.type === 'appearanceSettings' && message.outfit === 'classic'
+  )), true);
+});
+
+test('pajama appearance maps app feedback to matching v2 animation semantics', () => {
+  function positionAfter(...commands) {
+    const webview = loadWebview();
+    webview.message({ data: { command: 'settings', settings: { outfit: 'pajama' } } });
+    for (const command of commands) webview.message({ data: { command } });
+    return webview.elements.get('pet').style.backgroundPosition;
+  }
+
+  assert.equal(positionAfter('think'), '0px -1248px');
+  assert.equal(positionAfter('milestone'), '0px -468px');
+  assert.equal(positionAfter('typingReminder'), '0px -936px');
+
+  const interrupted = loadWebview();
+  interrupted.message({ data: { command: 'settings', settings: { outfit: 'pajama' } } });
+  interrupted.message({ data: { command: 'work' } });
+  interrupted.elements.get('world').listeners.get('click')({
+    target: interrupted.elements.get('world'),
+    clientX: 0
+  });
+  assert.equal(interrupted.elements.get('pet').style.backgroundPosition, '0px -780px');
 });

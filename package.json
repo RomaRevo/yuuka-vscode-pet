@@ -159,6 +159,16 @@
           "default": true,
           "description": "Enable local mood and affinity changes from interactions."
         },
+        "yuukaPet.appearance.outfit": {
+          "type": "string",
+          "enum": ["classic", "pajama"],
+          "enumDescriptions": [
+            "The original pixel-art Yuuka in her classic uniform.",
+            "The softly rendered Yuuka in pale blue pajamas with a pillow."
+          ],
+          "default": "classic",
+          "description": "Yuuka appearance shown in the pet view."
+        },
         "yuukaPet.appearance.scene": {
           "type": "string",
           "enum": ["office", "millennium", "transparent"],

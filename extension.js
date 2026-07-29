@@ -38,8 +38,8 @@ class YuukaViewProvider {
       if (message.type === 'relationshipSettings' && typeof message.enabled === 'boolean') {
         void updateRelationshipEnabled(this, message.enabled);
       }
-      if (message.type === 'appearanceSettings' && typeof message.scene === 'string') {
-        void updateAppearanceScene(this, message.scene);
+      if (message.type === 'appearanceSettings') {
+        void updateAppearanceSettings(this, message);
       }
     });
   }
@@ -62,7 +62,8 @@ class YuukaViewProvider {
 
   getHtml(webview) {
     const nonce = getNonce();
-    const spriteUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'spritesheet.png'));
+    const classicSpriteUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'spritesheet.png'));
+    const pajamaSpriteUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'spritesheet-pajama.webp'));
     const dialogueUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'dialogue.js'));
     const dialoguePolicyUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'dialoguePolicy.js'));
     const relationshipDialogueUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'relationshipDialogue.js'));
@@ -82,11 +83,11 @@ class YuukaViewProvider {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="${csp}">
   <link rel="stylesheet" href="${styleUri}">
-  <style nonce="${nonce}">body { --sprite-url: url('${spriteUri}'); }</style>
+  <style nonce="${nonce}">body { --sprite-classic-url: url('${classicSpriteUri}'); --sprite-pajama-url: url('${pajamaSpriteUri}'); }</style>
   <title>早濑优香</title>
 </head>
 <body>
-  <main id="world" data-scene="millennium" aria-label="早濑优香桌宠活动区域">
+  <main id="world" data-scene="millennium" data-outfit="classic" aria-label="早濑优香桌宠活动区域">
     <section id="speech" role="status">今天的工作清单整理好了吗？</section>
     <div id="hint">点击优香互动 · 点击地面让她走过去</div>
     <div id="pet" class="sprite" role="button" tabindex="0" aria-label="早濑优香"></div>
@@ -104,7 +105,7 @@ class YuukaViewProvider {
       <button class="tab" role="tab" aria-selected="false" data-panel="reminders-panel">提醒</button>
       <button class="tab" role="tab" aria-selected="false" data-panel="stats-panel">统计</button>
       <button class="tab" role="tab" aria-selected="false" data-panel="relationship-panel">关系</button>
-      <button class="tab" role="tab" aria-selected="false" data-panel="scene-panel">场景</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="scene-panel">外观</button>
     </div>
     <section id="focus-panel" class="panel active" role="tabpanel">
       <div class="timer-context">
@@ -176,6 +177,17 @@ class YuukaViewProvider {
       </div>
     </section>
     <section id="scene-panel" class="panel" role="tabpanel" hidden>
+      <label class="field-row" for="outfit-select">
+        <span>优香形象</span>
+        <select id="outfit-select">
+          <option value="classic">经典制服</option>
+          <option value="pajama">睡衣</option>
+        </select>
+      </label>
+      <div class="scene-description">
+        <strong id="outfit-name">经典制服</strong>
+        <p id="outfit-detail">保留原有像素风形象与完整互动动画。</p>
+      </div>
       <label class="field-row" for="scene-select">
         <span>桌宠背景</span>
         <select id="scene-select">
@@ -279,7 +291,8 @@ function getWebviewSettings() {
   return {
     relationshipEnabled: vscode.workspace.getConfiguration('yuukaPet.relationship').get('enabled', true),
     randomEventFrequency: vscode.workspace.getConfiguration('yuukaPet.randomEvents').get('frequency', 'low'),
-    scene: vscode.workspace.getConfiguration('yuukaPet.appearance').get('scene', 'millennium')
+    scene: vscode.workspace.getConfiguration('yuukaPet.appearance').get('scene', 'millennium'),
+    outfit: vscode.workspace.getConfiguration('yuukaPet.appearance').get('outfit', 'classic')
   };
 }
 
@@ -293,15 +306,20 @@ async function updateRelationshipEnabled(provider, enabled) {
   }
 }
 
-async function updateAppearanceScene(provider, scene) {
+async function updateAppearanceSettings(provider, { scene, outfit }) {
   const allowedScenes = new Set(['office', 'millennium', 'transparent']);
-  if (!allowedScenes.has(scene)) return;
+  const allowedOutfits = new Set(['classic', 'pajama']);
+  const appearance = vscode.workspace.getConfiguration('yuukaPet.appearance');
   try {
-    await vscode.workspace.getConfiguration('yuukaPet.appearance')
-      .update('scene', scene, vscode.ConfigurationTarget.Global);
+    if (typeof scene === 'string' && allowedScenes.has(scene)) {
+      await appearance.update('scene', scene, vscode.ConfigurationTarget.Global);
+    }
+    if (typeof outfit === 'string' && allowedOutfits.has(outfit)) {
+      await appearance.update('outfit', outfit, vscode.ConfigurationTarget.Global);
+    }
   } catch (error) {
     provider.post('settings', { settings: getWebviewSettings() });
-    vscode.window.showErrorMessage(`无法更新桌宠背景：${error.message}`);
+    vscode.window.showErrorMessage(`无法更新桌宠外观：${error.message}`);
   }
 }
 

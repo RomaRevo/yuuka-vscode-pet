@@ -33,6 +33,7 @@ def main() -> None:
   <Default Extension="js" ContentType="application/javascript" />
   <Default Extension="css" ContentType="text/css" />
   <Default Extension="png" ContentType="image/png" />
+  <Default Extension="webp" ContentType="image/webp" />
   <Default Extension="svg" ContentType="image/svg+xml" />
   <Default Extension="md" ContentType="text/markdown" />
   <Default Extension="py" ContentType="text/plain" />
@@ -86,6 +87,7 @@ def main() -> None:
         "media/icon.png",
         "media/scene-office-v1.png",
         "media/spritesheet.png",
+        "media/spritesheet-pajama.webp",
     ]
     with zipfile.ZipFile(vsix, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("[Content_Types].xml", content_types)

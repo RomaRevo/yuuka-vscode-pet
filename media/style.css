@@ -1,8 +1,5 @@
 :root {
   color-scheme: light dark;
-  --pet-scale: 2;
-  --frame-w: 72px;
-  --frame-h: 78px;
 }
 
 * { box-sizing: border-box; }
@@ -118,17 +115,26 @@ body {
   position: absolute;
   bottom: 10px;
   left: calc(50% - 72px);
-  width: calc(var(--frame-w) * var(--pet-scale));
-  height: calc(var(--frame-h) * var(--pet-scale));
+  width: 144px;
+  height: 156px;
   outline: none;
-  background-image: var(--sprite-url);
   background-repeat: no-repeat;
-  background-size: calc(576px * var(--pet-scale)) calc(936px * var(--pet-scale));
   cursor: pointer;
-  image-rendering: pixelated;
   touch-action: none;
   filter: drop-shadow(0 7px 5px color-mix(in srgb, #000 28%, transparent));
   will-change: left, background-position;
+}
+
+#world[data-outfit='classic'] .sprite {
+  background-image: var(--sprite-classic-url);
+  background-size: 1152px 1872px;
+  image-rendering: pixelated;
+}
+
+#world[data-outfit='pajama'] .sprite {
+  background-image: var(--sprite-pajama-url);
+  background-size: 1152px 1716px;
+  image-rendering: auto;
 }
 
 .sprite:focus-visible { filter: drop-shadow(0 0 7px #44d5ff); }
@@ -311,6 +317,7 @@ select {
   background: color-mix(in srgb, var(--vscode-editor-background) 58%, transparent);
 }
 
+.scene-description + .field-row { margin-top: 14px; }
 .scene-description strong { display: block; margin-bottom: 4px; }
 .scene-description p, .local-note { margin: 0; color: var(--vscode-descriptionForeground); font-size: 12px; line-height: 1.5; }
 .local-note { margin-top: 12px; }

@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
+const crypto = require('node:crypto');
 const path = require('node:path');
 const vm = require('node:vm');
 const test = require('node:test');
@@ -26,6 +27,8 @@ test('P2 commands and settings are contributed', () => {
   assert.equal(settings['yuukaPet.reactions.taskResults'].default, true);
   assert.equal(settings['yuukaPet.randomEvents.frequency'].default, 'low');
   assert.equal(settings['yuukaPet.relationship.enabled'].default, true);
+  assert.equal(settings['yuukaPet.appearance.outfit'].default, 'classic');
+  assert.deepEqual(settings['yuukaPet.appearance.outfit'].enum, ['classic', 'pajama']);
   assert.equal(settings['yuukaPet.appearance.scene'].default, 'millennium');
   assert.deepEqual(settings['yuukaPet.appearance.scene'].enum, ['office', 'millennium', 'transparent']);
 });
@@ -85,13 +88,15 @@ test('relationship controls are visible in the pet view', () => {
   assert.match(buildSource, /media\/relationshipDialogue\.js/);
 });
 
-test('theme-aware local scenes are visible in the pet view', () => {
+test('theme-aware local scenes and optional outfits are visible in the pet view', () => {
   const extensionSource = fs.readFileSync(path.resolve(__dirname, '../extension.js'), 'utf8');
   const styleSource = fs.readFileSync(path.resolve(__dirname, '../media/style.css'), 'utf8');
   const buildSource = fs.readFileSync(path.resolve(__dirname, '../build_vsix.py'), 'utf8');
   const officeBackground = fs.readFileSync(path.resolve(__dirname, '../media/scene-office-v1.png'));
-  assert.match(extensionSource, /data-panel="scene-panel">场景/);
+  const pajamaSprite = fs.readFileSync(path.resolve(__dirname, '../media/spritesheet-pajama.webp'));
+  assert.match(extensionSource, /data-panel="scene-panel">外观/);
   assert.match(extensionSource, /id="scene-select"/);
+  assert.match(extensionSource, /id="outfit-select"/);
   assert.match(extensionSource, /type === 'appearanceSettings'/);
   for (const scene of ['office', 'millennium', 'transparent']) {
     assert.match(styleSource, new RegExp(`data-scene='${scene}'`));
@@ -103,6 +108,13 @@ test('theme-aware local scenes are visible in the pet view', () => {
   assert.equal(officeBackground.subarray(1, 4).toString('ascii'), 'PNG');
   assert.equal(officeBackground.readUInt32BE(16), 384);
   assert.equal(officeBackground.readUInt32BE(20), 256);
+  assert.equal(pajamaSprite.subarray(0, 4).toString('ascii'), 'RIFF');
+  assert.equal(pajamaSprite.subarray(8, 12).toString('ascii'), 'WEBP');
+  assert.equal(
+    crypto.createHash('sha256').update(pajamaSprite).digest('hex'),
+    '2a5da11104f4b8d5a568af558604833adb8c5dabac543e3916a6d93c860a2db6'
+  );
+  assert.match(buildSource, /media\/spritesheet-pajama\.webp/);
 });
 
 test('editor reactions do not read document or terminal content', () => {

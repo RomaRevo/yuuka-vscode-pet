@@ -19,6 +19,9 @@
   const affinityRange = document.getElementById('affinity-range');
   const affinityNumber = document.getElementById('affinity-number');
   const affinityOutput = document.getElementById('affinity-output');
+  const outfitSelect = document.getElementById('outfit-select');
+  const outfitName = document.getElementById('outfit-name');
+  const outfitDetail = document.getElementById('outfit-detail');
   const sceneSelect = document.getElementById('scene-select');
   const sceneName = document.getElementById('scene-name');
   const sceneDetail = document.getElementById('scene-detail');
@@ -26,28 +29,53 @@
   const relationshipDialogue = window.YUUKA_RELATIONSHIP_DIALOGUE || {};
   const dialoguePolicy = window.YUUKA_DIALOGUE_POLICY;
   const persisted = vscode.getState() || {};
-  const frameW = 72;
-  const frameH = 78;
-  const scale = 2;
-  const rows = {
-    idle: { row: 0, count: 7, speed: 430 },
-    right: { row: 1, count: 8, speed: 95 },
-    left: { row: 2, count: 8, speed: 95 },
-    greet: { row: 3, count: 4, speed: 180 },
-    jump: { row: 4, count: 5, speed: 110 },
-    alert: { row: 5, count: 8, speed: 150 },
-    think: { row: 6, count: 6, speed: 260 },
-    work: { row: 7, count: 6, speed: 210 },
-    celebrate: { row: 8, count: 6, speed: 140 },
-    lookRight: { row: 9, count: 8, speed: 180 },
-    lookLeft: { row: 10, count: 8, speed: 180 },
-    workAngry: { row: 11, count: 6, speed: 210 }
+  const frameW = 144;
+  const frameH = 156;
+  const appearances = {
+    classic: {
+      label: '经典制服',
+      detail: '保留原有像素风形象与完整互动动画。',
+      rows: {
+        idle: { row: 0, count: 7, speed: 430 },
+        right: { row: 1, count: 8, speed: 95 },
+        left: { row: 2, count: 8, speed: 95 },
+        greet: { row: 3, count: 4, speed: 180 },
+        jump: { row: 4, count: 5, speed: 110 },
+        alert: { row: 5, count: 8, speed: 150 },
+        think: { row: 6, count: 6, speed: 260 },
+        work: { row: 7, count: 6, speed: 210 },
+        celebrate: { row: 8, count: 6, speed: 140 },
+        lookRight: { row: 9, count: 8, speed: 180 },
+        lookLeft: { row: 10, count: 8, speed: 180 },
+        workAngry: { row: 11, count: 6, speed: 210 }
+      }
+    },
+    pajama: {
+      label: '睡衣',
+      detail: '淡蓝睡衣、枕头与完整 v2 动作，适合夜间陪伴。',
+      rows: {
+        idle: { row: 0, count: 6, durations: [280, 110, 110, 140, 140, 320] },
+        right: { row: 1, count: 8, durations: [120, 120, 120, 120, 120, 120, 120, 220] },
+        left: { row: 2, count: 8, durations: [120, 120, 120, 120, 120, 120, 120, 220] },
+        greet: { row: 3, count: 4, durations: [140, 140, 140, 280] },
+        jump: { row: 4, count: 5, durations: [140, 140, 140, 140, 280] },
+        alert: { row: 6, count: 6, durations: [150, 150, 150, 150, 150, 260] },
+        think: { row: 8, count: 6, durations: [150, 150, 150, 150, 150, 280] },
+        work: { row: 7, count: 6, durations: [120, 120, 120, 120, 120, 220] },
+        celebrate: { row: 3, count: 4, durations: [140, 140, 140, 280] },
+        lookRight: { row: 9, count: 1, frames: [4], speed: 180 },
+        lookLeft: { row: 10, count: 1, frames: [4], speed: 180 },
+        workAngry: { row: 5, count: 8, durations: [140, 140, 140, 140, 140, 140, 140, 240] }
+      }
+    }
   };
+  let activeAppearance = appearances.classic;
   const recentDialogue = [];
   let settings = {
     relationshipEnabled: true,
     randomEventFrequency: 'low',
-    scene: 'millennium'
+    scene: 'millennium',
+    outfit: 'classic'
   };
   let relationship = {
     mood: Number.isFinite(persisted.mood) ? Math.max(-2, Math.min(2, Math.round(persisted.mood))) : 0,
@@ -111,6 +139,22 @@
     sceneDetail.textContent = scenes[scene][1];
   }
 
+  function renderAppearance() {
+    const outfit = Object.hasOwn(appearances, settings.outfit) ? settings.outfit : 'classic';
+    const changed = activeAppearance !== appearances[outfit];
+    settings.outfit = outfit;
+    activeAppearance = appearances[outfit];
+    world.dataset.outfit = outfit;
+    outfitSelect.value = outfit;
+    outfitName.textContent = activeAppearance.label;
+    outfitDetail.textContent = activeAppearance.detail;
+    if (changed) {
+      frame = 0;
+      place(x);
+      setState(state);
+    }
+  }
+
   function adjustRelationship(moodDelta, affinityDelta) {
     if (!settings.relationshipEnabled) return;
     relationship.mood = Math.max(-2, Math.min(2, relationship.mood + moodDelta));
@@ -152,7 +196,7 @@
   }
 
   function maxX() {
-    return Math.max(0, world.clientWidth - frameW * scale);
+    return Math.max(0, world.clientWidth - frameW);
   }
 
   function place(nextX) {
@@ -161,13 +205,18 @@
   }
 
   function render() {
-    const spec = rows[state];
-    pet.style.backgroundPosition = `${-frame * frameW * scale}px ${-spec.row * frameH * scale}px`;
+    const spec = activeAppearance.rows[state];
+    const cell = spec.frames ? spec.frames[frame] : frame;
+    pet.style.backgroundPosition = `${-cell * frameW}px ${-spec.row * frameH}px`;
+  }
+
+  function frameDelay(spec) {
+    return spec.durations ? spec.durations[frame] : spec.speed;
   }
 
   function animate() {
     clearTimeout(loopTimer);
-    const spec = rows[state];
+    const spec = activeAppearance.rows[state];
     frame = (frame + 1) % spec.count;
     if (targetX !== null) {
       const delta = targetX - x;
@@ -180,7 +229,7 @@
       place(x + Math.sign(delta) * Math.min(7, Math.abs(delta)));
     }
     render();
-    loopTimer = setTimeout(animate, spec.speed);
+    loopTimer = setTimeout(animate, frameDelay(spec));
   }
 
   function setState(next) {
@@ -188,7 +237,7 @@
     frame = 0;
     render();
     clearTimeout(loopTimer);
-    loopTimer = setTimeout(animate, rows[next].speed);
+    loopTimer = setTimeout(animate, frameDelay(activeAppearance.rows[next]));
   }
 
   function say(text) {
@@ -278,6 +327,7 @@
       settings = { ...settings, ...(payload.settings || {}) };
       renderRelationship();
       renderScene();
+      renderAppearance();
       return;
     }
     if (command === 'saved') passiveOneShot('greet', 1100, 'saved');
@@ -478,13 +528,13 @@
   world.addEventListener('click', (event) => {
     if (reactToWorkInterruption() || event.target === pet) return;
     const clickX = event.clientX - world.getBoundingClientRect().left;
-    targetX = Math.max(0, Math.min(maxX(), clickX - frameW * scale / 2));
+    targetX = Math.max(0, Math.min(maxX(), clickX - frameW / 2));
     setState(targetX >= x ? 'right' : 'left');
   });
 
   world.addEventListener('pointermove', (event) => {
     if (workLocked || dragging || state !== 'idle') return;
-    const petCenter = world.getBoundingClientRect().left + x + frameW * scale / 2;
+    const petCenter = world.getBoundingClientRect().left + x + frameW / 2;
     const direction = event.clientX >= petCenter ? 'lookRight' : 'lookLeft';
     clearTimeout(lookIntentTimer);
     clearTimeout(lookReturnTimer);
@@ -594,6 +644,11 @@
     renderScene();
     vscode.postMessage({ type: 'appearanceSettings', scene: settings.scene });
   });
+  outfitSelect.addEventListener('change', () => {
+    settings.outfit = outfitSelect.value;
+    renderAppearance();
+    vscode.postMessage({ type: 'appearanceSettings', outfit: settings.outfit });
+  });
   window.addEventListener('resize', () => place(x));
   window.addEventListener('message', (event) => {
     if (event.data.command === 'play') play('interaction');
@@ -616,6 +671,7 @@
   setState('idle');
   renderRelationship();
   renderScene();
+  renderAppearance();
   randomEventTimer = setInterval(maybeRunRandomEvent, 60000);
   window.addEventListener('beforeunload', () => {
     clearTimeout(loopTimer);
