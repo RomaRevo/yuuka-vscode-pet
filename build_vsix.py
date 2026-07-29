@@ -23,6 +23,7 @@ def main() -> None:
     name = package["name"]
     version = package["version"]
     publisher = package["publisher"]
+    extension_kind = ",".join(package.get("extensionKind", ["workspace"]))
     vsix = args.output.resolve() if args.output else DIST / f"{name}-{version}.vsix"
     DIST.mkdir(exist_ok=True)
     vsix.parent.mkdir(parents=True, exist_ok=True)
@@ -52,7 +53,7 @@ def main() -> None:
       <Property Id="Microsoft.VisualStudio.Code.Engine" Value="{escape(package['engines']['vscode'])}" />
       <Property Id="Microsoft.VisualStudio.Code.ExtensionDependencies" Value="" />
       <Property Id="Microsoft.VisualStudio.Code.ExtensionPack" Value="" />
-      <Property Id="Microsoft.VisualStudio.Code.ExtensionKind" Value="workspace" />
+      <Property Id="Microsoft.VisualStudio.Code.ExtensionKind" Value="{escape(extension_kind)}" />
       <Property Id="Microsoft.VisualStudio.Services.Content.Pricing" Value="Free" />
     </Properties>
     <Icon>extension/media/icon.png</Icon>

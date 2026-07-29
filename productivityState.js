@@ -2,6 +2,8 @@
 
 const PHASES = new Set(['focus', 'shortBreak', 'longBreak']);
 const STATUSES = new Set(['idle', 'running', 'paused']);
+const MAX_TASKS = 100;
+const MAX_REMINDERS = 50;
 
 function normalizeDurations(durations) {
   return {
@@ -15,34 +17,35 @@ function normalizeWorkspaceState(raw, durations, now = Date.now()) {
   const safeDurations = normalizeDurations(durations);
   const source = raw && typeof raw === 'object' ? raw : {};
   const tasks = Array.isArray(source.tasks)
-    ? source.tasks.filter(validTask).slice(0, 100).map((task) => ({
+    ? source.tasks.filter(validTask).map((task) => ({
       id: task.id,
-      title: task.title.slice(0, 120),
+      title: cleanStoredText(task.title),
       completed: Boolean(task.completed),
       counted: Boolean(task.counted),
       createdAt: finiteNumber(task.createdAt, now),
       completedAt: Number.isFinite(task.completedAt) ? task.completedAt : null
     }))
     : [];
-  const selectedTaskId = tasks.some(({ id }) => id === source.selectedTaskId)
+  const selectedTaskId = tasks.some(({ id, completed }) => id === source.selectedTaskId && !completed)
     ? source.selectedTaskId
     : null;
   const phase = PHASES.has(source.timer?.phase) ? source.timer.phase : 'focus';
   let status = STATUSES.has(source.timer?.status) ? source.timer.status : 'idle';
   const durationMs = positiveNumber(source.timer?.durationMs, safeDurations[phase]);
-  const remainingMs = positiveNumber(source.timer?.remainingMs, durationMs);
+  const remainingMs = nonNegativeNumber(source.timer?.remainingMs, durationMs);
   const endAt = Number.isFinite(source.timer?.endAt) ? source.timer.endAt : null;
   if (status === 'running' && endAt === null) status = 'paused';
   const reminders = Array.isArray(source.reminders)
-    ? source.reminders.filter(validReminder).slice(0, 50).map((reminder) => ({
+    ? source.reminders.filter(validReminder).map((reminder) => ({
       id: reminder.id,
-      text: reminder.text.slice(0, 120),
+      text: cleanStoredText(reminder.text),
       dueAt: reminder.dueAt
     }))
     : [];
 
   return {
-    version: 1,
+    version: 2,
+    taskDate: validDateKey(source.taskDate) ? source.taskDate : dateKey(now),
     tasks,
     selectedTaskId,
     timer: { phase, status, durationMs, remainingMs, endAt },
@@ -50,6 +53,27 @@ function normalizeWorkspaceState(raw, durations, now = Date.now()) {
     reminders,
     lastHydrationAt: finiteNumber(source.lastHydrationAt, now),
     lastHourlyKey: typeof source.lastHourlyKey === 'string' ? source.lastHourlyKey : null
+  };
+}
+
+function rolloverWorkspaceTasks(workspace, now = Date.now()) {
+  const taskDate = dateKey(now);
+  if (workspace.taskDate === taskDate) return { workspace, changed: false };
+  const tasks = workspace.tasks
+    .filter(({ completed }) => !completed)
+    .map((task) => ({ ...task, completed: false, counted: false, completedAt: null }));
+  const selectedTaskId = tasks.some(({ id }) => id === workspace.selectedTaskId)
+    ? workspace.selectedTaskId
+    : null;
+  return {
+    workspace: {
+      ...workspace,
+      version: 2,
+      taskDate,
+      tasks,
+      selectedTaskId
+    },
+    changed: true
   };
 }
 
@@ -81,7 +105,7 @@ function startTimer(timer, durations, now = Date.now()) {
   const phase = PHASES.has(timer?.phase) ? timer.phase : 'focus';
   const fallback = safeDurations[phase];
   const remainingMs = timer?.status === 'paused'
-    ? positiveNumber(timer.remainingMs, fallback)
+    ? nonNegativeNumber(timer.remainingMs, fallback)
     : fallback;
   return {
     phase,
@@ -214,8 +238,20 @@ function validReminder(reminder) {
     && reminder.text.trim() && Number.isFinite(reminder.dueAt);
 }
 
+function validDateKey(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function cleanStoredText(value) {
+  return value.trim().replace(/\s+/g, ' ').slice(0, 120);
+}
+
 function positiveNumber(value, fallback) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function nonNegativeNumber(value, fallback) {
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
 }
 
 function finiteNumber(value, fallback) {
@@ -231,6 +267,8 @@ function zeroStats() {
 }
 
 module.exports = {
+  MAX_REMINDERS,
+  MAX_TASKS,
   completeTimer,
   dateKey,
   hourKey,
@@ -241,6 +279,7 @@ module.exports = {
   pauseTimer,
   recordDaily,
   resetTimer,
+  rolloverWorkspaceTasks,
   startTimer,
   statsSummary,
   timerSnapshot

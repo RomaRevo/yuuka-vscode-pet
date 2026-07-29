@@ -13,6 +13,12 @@
   const taskEmpty = document.getElementById('task-empty');
   const reminderList = document.getElementById('reminder-list');
   const reminderEmpty = document.getElementById('reminder-empty');
+  const taskInput = document.getElementById('task-input');
+  const taskSubmit = document.getElementById('task-submit');
+  const reminderInput = document.getElementById('reminder-input');
+  const reminderTime = document.getElementById('reminder-time');
+  const reminderSubmit = document.getElementById('reminder-submit');
+  const productivityMessage = document.getElementById('productivity-message');
   const relationshipEnabled = document.getElementById('relationship-enabled');
   const relationshipControls = document.getElementById('relationship-controls');
   const moodSelect = document.getElementById('mood-select');
@@ -28,7 +34,8 @@
   const dialogue = window.YUUKA_DIALOGUE || {};
   const relationshipDialogue = window.YUUKA_RELATIONSHIP_DIALOGUE || {};
   const dialoguePolicy = window.YUUKA_DIALOGUE_POLICY;
-  const persisted = vscode.getState() || {};
+  let persisted = vscode.getState() || {};
+  const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false;
   const frameW = 144;
   const frameH = 156;
   const appearances = {
@@ -99,9 +106,21 @@
   let lastInteractionAt = 0;
   let lastWorkInterruptionAt = 0;
   let lastPassiveReactionAt = 0;
+  let pendingTaskCount = null;
+  let pendingReminderCount = null;
+
+  function persistState(patch) {
+    persisted = { ...persisted, ...patch };
+    vscode.setState(persisted);
+  }
 
   function persistRelationship() {
-    vscode.setState({ ...persisted, ...relationship });
+    persistState(relationship);
+  }
+
+  function persistPosition() {
+    const limit = maxX();
+    persistState({ positionRatio: limit > 0 ? x / limit : 0.5 });
   }
 
   function renderRelationship() {
@@ -217,19 +236,22 @@
   function animate() {
     clearTimeout(loopTimer);
     const spec = activeAppearance.rows[state];
-    frame = (frame + 1) % spec.count;
+    frame = prefersReducedMotion ? 0 : (frame + 1) % spec.count;
     if (targetX !== null) {
       const delta = targetX - x;
       if (Math.abs(delta) < 4) {
         place(targetX);
         targetX = null;
+        persistPosition();
         setState('idle');
         return;
       }
       place(x + Math.sign(delta) * Math.min(7, Math.abs(delta)));
     }
     render();
-    loopTimer = setTimeout(animate, frameDelay(spec));
+    if (!prefersReducedMotion || targetX !== null) {
+      loopTimer = setTimeout(animate, prefersReducedMotion ? 80 : frameDelay(spec));
+    }
   }
 
   function setState(next) {
@@ -237,7 +259,12 @@
     frame = 0;
     render();
     clearTimeout(loopTimer);
-    loopTimer = setTimeout(animate, frameDelay(activeAppearance.rows[next]));
+    if (!prefersReducedMotion || targetX !== null) {
+      loopTimer = setTimeout(
+        animate,
+        prefersReducedMotion ? 80 : frameDelay(activeAppearance.rows[next])
+      );
+    }
   }
 
   function say(text) {
@@ -384,8 +411,37 @@
     if (command === 'hydrationReminder') passiveOneShot('alert', 2400, 'hydrationReminder', true);
     if (command === 'hourlyReminder') passiveOneShot('greet', 1600, 'hourlyReminder');
     if (command === 'productivityError') {
-      say(payload.text || chooseLine('interaction'));
+      const text = payload.text || chooseLine('interaction');
+      showProductivityMessage(text, 'error');
+      finishPendingTask(false);
+      finishPendingReminder(false);
+      say(text);
     }
+  }
+
+  function showProductivityMessage(text, tone = 'info') {
+    productivityMessage.hidden = !text;
+    productivityMessage.textContent = text || '';
+    productivityMessage.dataset.tone = tone;
+  }
+
+  function finishPendingTask(succeeded) {
+    if (pendingTaskCount === null) return;
+    if (succeeded) taskInput.value = '';
+    taskSubmit.disabled = false;
+    taskInput.setAttribute('aria-busy', 'false');
+    pendingTaskCount = null;
+  }
+
+  function finishPendingReminder(succeeded) {
+    if (pendingReminderCount === null) return;
+    if (succeeded) {
+      reminderInput.value = '';
+      reminderTime.value = '';
+    }
+    reminderSubmit.disabled = false;
+    reminderInput.setAttribute('aria-busy', 'false');
+    pendingReminderCount = null;
   }
 
   function releaseFocus(category) {
@@ -399,11 +455,22 @@
 
   function renderProductivity(next, restoreActive = false) {
     if (!next) return;
+    const taskAdded = pendingTaskCount !== null && (next.tasks || []).length > pendingTaskCount;
+    const reminderAdded = pendingReminderCount !== null
+      && (next.reminders || []).length > pendingReminderCount;
+    if (taskAdded) finishPendingTask(true);
+    if (reminderAdded) finishPendingReminder(true);
+    showProductivityMessage('');
     productivity = next;
     const phaseLabels = { focus: '专注', shortBreak: '短休息', longBreak: '长休息' };
     timerPhase.textContent = phaseLabels[next.timer.phase] || '专注';
     timerTask.textContent = next.selectedTaskTitle || '未选择当前任务';
     timerDisplay.textContent = formatDuration(next.timer.remainingMs);
+    const statusLabels = { idle: '尚未开始', running: '进行中', paused: '已暂停' };
+    timerDisplay.setAttribute(
+      'aria-label',
+      `${phaseLabels[next.timer.phase] || '专注'}${statusLabels[next.timer.status] || ''}，剩余 ${timerDisplay.textContent}`
+    );
     timerPrimary.textContent = next.timer.status === 'running' ? '暂停'
       : next.timer.status === 'paused' ? '继续' : '开始';
     timerStop.disabled = next.timer.status === 'idle';
@@ -519,6 +586,7 @@
     if (wasDragging) {
       adjustRelationship(0, 1);
       setState('idle');
+      persistPosition();
       sayFrom('placed');
       return;
     }
@@ -595,17 +663,35 @@
     clearTimeout(workReactionTimer);
     targetX = null;
     place(maxX() / 2);
+    persistPosition();
     oneShot('greet', 1200, chooseLine('reset'));
   });
-  for (const tab of document.querySelectorAll('.tab')) {
-    tab.addEventListener('click', () => {
-      for (const candidate of document.querySelectorAll('.tab')) {
-        const active = candidate === tab;
-        candidate.classList.toggle('active', active);
-        candidate.setAttribute('aria-selected', String(active));
-        document.getElementById(candidate.dataset.panel).hidden = !active;
-        document.getElementById(candidate.dataset.panel).classList.toggle('active', active);
-      }
+  const tabs = [...document.querySelectorAll('.tab')];
+  function activateTab(tab, { focus = false, persist = true } = {}) {
+    for (const candidate of tabs) {
+      const active = candidate === tab;
+      candidate.classList.toggle('active', active);
+      candidate.setAttribute('aria-selected', String(active));
+      candidate.setAttribute('tabindex', active ? '0' : '-1');
+      const panel = document.getElementById(candidate.dataset.panel);
+      panel.hidden = !active;
+      panel.classList.toggle('active', active);
+    }
+    if (persist) persistState({ activePanel: tab.dataset.panel });
+    if (focus) tab.focus();
+  }
+  for (const tab of tabs) {
+    tab.addEventListener('click', () => activateTab(tab));
+    tab.addEventListener('keydown', (event) => {
+      const index = tabs.indexOf(tab);
+      let nextIndex = null;
+      if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
+      if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = tabs.length - 1;
+      if (nextIndex === null) return;
+      event.preventDefault();
+      activateTab(tabs[nextIndex], { focus: true });
     });
   }
   timerPrimary.addEventListener('click', () => {
@@ -615,16 +701,22 @@
   timerReset.addEventListener('click', () => postProductivity('reset'));
   document.getElementById('task-form').addEventListener('submit', (event) => {
     event.preventDefault();
-    const input = document.getElementById('task-input');
-    postProductivity('addTask', { title: input.value });
-    input.value = '';
+    if (taskSubmit.disabled) return;
+    pendingTaskCount = productivity?.tasks.length || 0;
+    taskSubmit.disabled = true;
+    taskInput.setAttribute('aria-busy', 'true');
+    postProductivity('addTask', { title: taskInput.value });
   });
   document.getElementById('reminder-form').addEventListener('submit', (event) => {
     event.preventDefault();
-    const input = document.getElementById('reminder-input');
-    const time = document.getElementById('reminder-time');
-    postProductivity('addReminder', { text: input.value, dueAt: new Date(time.value).getTime() });
-    input.value = '';
+    if (reminderSubmit.disabled) return;
+    pendingReminderCount = productivity?.reminders.length || 0;
+    reminderSubmit.disabled = true;
+    reminderInput.setAttribute('aria-busy', 'true');
+    postProductivity('addReminder', {
+      text: reminderInput.value,
+      dueAt: new Date(reminderTime.value).getTime()
+    });
   });
   document.getElementById('clear-stats').addEventListener('click', () => postProductivity('clearStats'));
   relationshipEnabled.addEventListener('change', () => {
@@ -662,16 +754,19 @@
       clearTimeout(workReactionTimer);
       targetX = null;
       place(maxX() / 2);
+      persistPosition();
       setState('idle');
     }
     handleCommand(event.data.command, event.data);
   });
 
-  place(maxX() / 2);
+  place(maxX() * (Number.isFinite(persisted.positionRatio) ? persisted.positionRatio : 0.5));
   setState('idle');
   renderRelationship();
   renderScene();
   renderAppearance();
+  const initialTab = tabs.find(({ dataset }) => dataset.panel === persisted.activePanel) || tabs[0];
+  if (initialTab) activateTab(initialTab, { persist: false });
   randomEventTimer = setInterval(maybeRunRandomEvent, 60000);
   window.addEventListener('beforeunload', () => {
     clearTimeout(loopTimer);

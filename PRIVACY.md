@@ -26,5 +26,9 @@ are stored in global state as dates and numeric counts only; task and reminder t
 never copied into statistics. Statistics can be cleared from the extension UI or the
 `Yuuka Pet: Clear Focus Statistics` command.
 
+Completed daily tasks are removed from workspace state when the local calendar day
+changes. Unfinished tasks remain in the current workspace and roll forward without
+being copied to global statistics.
+
 Editor reactions use event timing and reliable VS Code Task exit codes only. The
 extension does not inspect saved documents or task output.

@@ -10,7 +10,9 @@
   },
   "categories": ["Other"],
   "main": "./extension.js",
+  "extensionKind": ["ui", "workspace"],
   "activationEvents": [
+    "onStartupFinished",
     "onView:yuukaPet.view",
     "onCommand:yuukaPet.show",
     "onCommand:yuukaPet.play",

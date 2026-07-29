@@ -100,45 +100,46 @@ class YuukaViewProvider {
   </nav>
   <section id="productivity" aria-label="生产力工具">
     <div class="tabs" role="tablist" aria-label="桌宠功能视图">
-      <button class="tab active" role="tab" aria-selected="true" data-panel="focus-panel">专注</button>
-      <button class="tab" role="tab" aria-selected="false" data-panel="tasks-panel">任务</button>
-      <button class="tab" role="tab" aria-selected="false" data-panel="reminders-panel">提醒</button>
-      <button class="tab" role="tab" aria-selected="false" data-panel="stats-panel">统计</button>
-      <button class="tab" role="tab" aria-selected="false" data-panel="relationship-panel">关系</button>
-      <button class="tab" role="tab" aria-selected="false" data-panel="scene-panel">外观</button>
+      <button id="tab-focus" class="tab active" role="tab" aria-selected="true" aria-controls="focus-panel" tabindex="0" data-panel="focus-panel">专注</button>
+      <button id="tab-tasks" class="tab" role="tab" aria-selected="false" aria-controls="tasks-panel" tabindex="-1" data-panel="tasks-panel">任务</button>
+      <button id="tab-reminders" class="tab" role="tab" aria-selected="false" aria-controls="reminders-panel" tabindex="-1" data-panel="reminders-panel">提醒</button>
+      <button id="tab-stats" class="tab" role="tab" aria-selected="false" aria-controls="stats-panel" tabindex="-1" data-panel="stats-panel">统计</button>
+      <button id="tab-relationship" class="tab" role="tab" aria-selected="false" aria-controls="relationship-panel" tabindex="-1" data-panel="relationship-panel">关系</button>
+      <button id="tab-appearance" class="tab" role="tab" aria-selected="false" aria-controls="scene-panel" tabindex="-1" data-panel="scene-panel">外观</button>
     </div>
-    <section id="focus-panel" class="panel active" role="tabpanel">
+    <div id="productivity-message" class="inline-message" role="status" aria-live="polite" hidden></div>
+    <section id="focus-panel" class="panel active" role="tabpanel" aria-labelledby="tab-focus">
       <div class="timer-context">
         <strong id="timer-phase">专注</strong>
         <span id="timer-task">未选择当前任务</span>
       </div>
-      <div id="timer-display" aria-live="polite">25:00</div>
+      <div id="timer-display" role="timer" aria-label="专注剩余 25 分钟">25:00</div>
       <div class="button-row three">
         <button id="timer-primary">开始</button>
         <button id="timer-stop" class="secondary">结束</button>
         <button id="timer-reset" class="secondary">重置</button>
       </div>
     </section>
-    <section id="tasks-panel" class="panel" role="tabpanel" hidden>
+    <section id="tasks-panel" class="panel" role="tabpanel" aria-labelledby="tab-tasks" hidden>
       <form id="task-form" class="inline-form">
         <input id="task-input" type="text" maxlength="120" placeholder="添加今日任务" aria-label="任务内容">
-        <button type="submit">添加</button>
+        <button id="task-submit" type="submit">添加</button>
       </form>
-      <div id="task-empty" class="empty-state">今天还没有任务。</div>
+      <div id="task-empty" class="empty-state">今天还没有任务，先记下最重要的一件事吧。</div>
       <ul id="task-list" class="item-list" aria-label="今日任务"></ul>
     </section>
-    <section id="reminders-panel" class="panel" role="tabpanel" hidden>
+    <section id="reminders-panel" class="panel" role="tabpanel" aria-labelledby="tab-reminders" hidden>
       <form id="reminder-form" class="stack-form">
         <input id="reminder-input" type="text" maxlength="120" placeholder="提醒内容" aria-label="提醒内容">
         <div class="inline-form">
           <input id="reminder-time" type="datetime-local" aria-label="提醒时间">
-          <button type="submit">添加</button>
+          <button id="reminder-submit" type="submit">添加</button>
         </div>
       </form>
-      <div id="reminder-empty" class="empty-state">没有待处理提醒。</div>
+      <div id="reminder-empty" class="empty-state">没有待处理提醒，需要时在上方添加。</div>
       <ul id="reminder-list" class="item-list" aria-label="提醒列表"></ul>
     </section>
-    <section id="stats-panel" class="panel" role="tabpanel" hidden>
+    <section id="stats-panel" class="panel" role="tabpanel" aria-labelledby="tab-stats" hidden>
       <div class="stats-grid">
         <div><strong id="today-focus">0</strong><span>今日专注</span></div>
         <div><strong id="today-minutes">0</strong><span>今日分钟</span></div>
@@ -149,7 +150,7 @@ class YuukaViewProvider {
       </div>
       <button id="clear-stats" class="secondary full-width">清除本机统计</button>
     </section>
-    <section id="relationship-panel" class="panel" role="tabpanel" hidden>
+    <section id="relationship-panel" class="panel" role="tabpanel" aria-labelledby="tab-relationship" hidden>
       <label class="toggle-row">
         <input id="relationship-enabled" type="checkbox">
         <span>启用心情与亲密度</span>
@@ -176,7 +177,7 @@ class YuukaViewProvider {
         <button id="reset-relationship" class="secondary full-width">重置为平静与 0 好感</button>
       </div>
     </section>
-    <section id="scene-panel" class="panel" role="tabpanel" hidden>
+    <section id="scene-panel" class="panel" role="tabpanel" aria-labelledby="tab-appearance" hidden>
       <label class="field-row" for="outfit-select">
         <span>优香形象</span>
         <select id="outfit-select">

@@ -72,6 +72,8 @@ test('P1 productivity commands and settings are contributed', () => {
   assert.equal(settings['yuukaPet.focus.longBreakMinutes'].default, 15);
   assert.equal(settings['yuukaPet.reminders.enabled'].default, false);
   assert.equal(settings['yuukaPet.reminders.quietHoursStart'].default, '22:00');
+  assert.equal(packageJson.activationEvents.includes('onStartupFinished'), true);
+  assert.deepEqual(packageJson.extensionKind, ['ui', 'workspace']);
 });
 
 test('relationship controls are visible in the pet view', () => {
@@ -115,6 +117,15 @@ test('theme-aware local scenes and optional outfits are visible in the pet view'
     '2a5da11104f4b8d5a568af558604833adb8c5dabac543e3916a6d93c860a2db6'
   );
   assert.match(buildSource, /media\/spritesheet-pajama\.webp/);
+});
+
+test('modernized UI exposes shared radii, accessible tabs, and reduced motion', () => {
+  const styleSource = fs.readFileSync(path.resolve(__dirname, '../media/style.css'), 'utf8');
+  assert.match(styleSource, /--yuuka-radius-lg:\s*14px/);
+  assert.match(styleSource, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.doesNotMatch(styleSource, /border-left:\s*[2-9]/);
+  assert.match(extensionSource, /aria-controls="focus-panel"/);
+  assert.match(extensionSource, /id="productivity-message"/);
 });
 
 test('editor reactions do not read document or terminal content', () => {

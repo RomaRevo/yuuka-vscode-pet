@@ -9,6 +9,7 @@ const assert = require('node:assert/strict');
 class FakeElement {
   constructor() {
     this.listeners = new Map();
+    this.attributes = new Map();
     this.style = {};
     this.clientWidth = 800;
     this.clientHeight = 156;
@@ -27,7 +28,8 @@ class FakeElement {
     this.listeners.set(type, listener);
   }
 
-  setAttribute() {}
+  setAttribute(name, value) { this.attributes.set(name, String(value)); }
+  focus() { this.focused = true; }
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children = children; }
   querySelectorAll() { return []; }
@@ -56,11 +58,14 @@ function loadWebview() {
     ['task-empty', new FakeElement()],
     ['task-form', new FakeElement()],
     ['task-input', new FakeElement()],
+    ['task-submit', new FakeElement()],
     ['reminder-list', new FakeElement()],
     ['reminder-empty', new FakeElement()],
     ['reminder-form', new FakeElement()],
     ['reminder-input', new FakeElement()],
     ['reminder-time', new FakeElement()],
+    ['reminder-submit', new FakeElement()],
+    ['productivity-message', new FakeElement()],
     ['today-focus', new FakeElement()],
     ['today-minutes', new FakeElement()],
     ['today-tasks', new FakeElement()],
@@ -85,6 +90,21 @@ function loadWebview() {
     ['work', new FakeElement()],
     ['reset', new FakeElement()]
   ]);
+  const tabDefinitions = [
+    ['tab-focus', 'focus-panel'],
+    ['tab-tasks', 'tasks-panel'],
+    ['tab-reminders', 'reminders-panel'],
+    ['tab-stats', 'stats-panel'],
+    ['tab-relationship', 'relationship-panel'],
+    ['tab-appearance', 'scene-panel']
+  ];
+  const tabs = tabDefinitions.map(([id, panel]) => {
+    const tab = new FakeElement();
+    tab.dataset.panel = panel;
+    elements.set(id, tab);
+    elements.set(panel, new FakeElement());
+    return tab;
+  });
   const windowListeners = new Map();
   const posted = [];
   const timers = new Map();
@@ -97,7 +117,7 @@ function loadWebview() {
     }),
     document: {
       getElementById: (id) => elements.get(id),
-      querySelectorAll: () => [],
+      querySelectorAll: (selector) => (selector === '.tab' ? tabs : []),
       createElement: () => new FakeElement()
     },
     window: {
@@ -105,7 +125,8 @@ function loadWebview() {
         interaction: ['interaction'], work: ['work'], interrupted: ['interrupted'],
         annoyed: ['annoyed'], saved: ['saved'], taskSucceeded: ['success'], reset: ['reset']
       },
-      addEventListener: (type, listener) => windowListeners.set(type, listener)
+      addEventListener: (type, listener) => windowListeners.set(type, listener),
+      matchMedia: () => ({ matches: false })
     },
     setTimeout: (callback, delay) => {
       const id = nextTimerId;
@@ -190,6 +211,42 @@ test('productivity snapshot renders and timer control posts an action', () => {
   assert.equal(webview.elements.get('timer-display').textContent, '25:00');
   webview.elements.get('timer-primary').listeners.get('click')();
   assert.equal(webview.posted.some(({ type, action }) => type === 'productivity' && action === 'start'), true);
+});
+
+test('tabs support arrow-key navigation and keep one focusable tab', () => {
+  const webview = loadWebview();
+  const focusTab = webview.elements.get('tab-focus');
+  const tasksTab = webview.elements.get('tab-tasks');
+  let prevented = false;
+
+  focusTab.listeners.get('keydown')({
+    key: 'ArrowRight',
+    preventDefault: () => { prevented = true; }
+  });
+
+  assert.equal(prevented, true);
+  assert.equal(tasksTab.focused, true);
+  assert.equal(tasksTab.attributes.get('aria-selected'), 'true');
+  assert.equal(tasksTab.attributes.get('tabindex'), '0');
+  assert.equal(focusTab.attributes.get('tabindex'), '-1');
+  assert.equal(webview.elements.get('tasks-panel').hidden, false);
+  assert.equal(webview.elements.get('focus-panel').hidden, true);
+});
+
+test('failed task submission keeps the draft and shows inline recovery feedback', () => {
+  const webview = loadWebview();
+  const taskInput = webview.elements.get('task-input');
+  const taskSubmit = webview.elements.get('task-submit');
+  taskInput.value = '保留这段草稿';
+
+  webview.elements.get('task-form').listeners.get('submit')({ preventDefault() {} });
+  assert.equal(taskSubmit.disabled, true);
+
+  webview.message({ data: { command: 'productivityError', text: '今日任务已达到上限。' } });
+  assert.equal(taskInput.value, '保留这段草稿');
+  assert.equal(taskSubmit.disabled, false);
+  assert.equal(webview.elements.get('productivity-message').hidden, false);
+  assert.equal(webview.elements.get('productivity-message').textContent, '今日任务已达到上限。');
 });
 
 test('relationship controls expose and clamp manual mood and affinity settings', () => {
