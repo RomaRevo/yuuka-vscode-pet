@@ -68,12 +68,16 @@ test('P1 productivity commands and settings are contributed', () => {
 
   const settings = packageJson.contributes.configuration.properties;
   assert.equal(settings['yuukaPet.focus.focusMinutes'].default, 25);
+  assert.equal(settings['yuukaPet.focus.focusMinutes'].minimum, 1);
+  assert.equal(settings['yuukaPet.focus.focusMinutes'].maximum, 180);
   assert.equal(settings['yuukaPet.focus.shortBreakMinutes'].default, 5);
   assert.equal(settings['yuukaPet.focus.longBreakMinutes'].default, 15);
   assert.equal(settings['yuukaPet.reminders.enabled'].default, false);
   assert.equal(settings['yuukaPet.reminders.quietHoursStart'].default, '22:00');
   assert.equal(packageJson.activationEvents.includes('onStartupFinished'), true);
   assert.deepEqual(packageJson.extensionKind, ['ui', 'workspace']);
+  assert.match(extensionSource, /id="focus-duration-select"/);
+  assert.match(extensionSource, /id="focus-duration-input"[^>]+min="1"[^>]+max="180"/);
 });
 
 test('relationship controls are visible in the pet view', () => {

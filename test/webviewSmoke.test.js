@@ -54,6 +54,11 @@ function loadWebview() {
     ['timer-primary', new FakeElement()],
     ['timer-stop', new FakeElement()],
     ['timer-reset', new FakeElement()],
+    ['focus-duration-select', new FakeElement()],
+    ['focus-duration-custom', new FakeElement()],
+    ['focus-duration-input', new FakeElement()],
+    ['focus-duration-apply', new FakeElement()],
+    ['focus-duration-hint', new FakeElement()],
     ['task-list', new FakeElement()],
     ['task-empty', new FakeElement()],
     ['task-form', new FakeElement()],
@@ -200,6 +205,7 @@ test('productivity snapshot renders and timer control posts an action', () => {
     command: 'productivityState',
     state: {
       tasks: [], selectedTaskId: null, selectedTaskTitle: '', reminders: [],
+      focusMinutes: 25,
       timer: { phase: 'focus', status: 'idle', remainingMs: 25 * 60000 },
       stats: {
         today: { focusSessions: 0, focusMinutes: 0, tasksCompleted: 0 },
@@ -209,8 +215,80 @@ test('productivity snapshot renders and timer control posts an action', () => {
     }
   } });
   assert.equal(webview.elements.get('timer-display').textContent, '25:00');
+  assert.equal(webview.elements.get('focus-duration-select').value, '25');
   webview.elements.get('timer-primary').listeners.get('click')();
   assert.equal(webview.posted.some(({ type, action }) => type === 'productivity' && action === 'start'), true);
+});
+
+test('focus duration presets and custom minutes post validated actions', () => {
+  const webview = loadWebview();
+  webview.message({ data: {
+    command: 'productivityState',
+    state: {
+      tasks: [], selectedTaskId: null, selectedTaskTitle: '', reminders: [],
+      focusMinutes: 25,
+      timer: { phase: 'focus', status: 'idle', remainingMs: 25 * 60000 },
+      stats: {
+        today: { focusSessions: 0, focusMinutes: 0, tasksCompleted: 0 },
+        week: { focusSessions: 0, focusMinutes: 0, tasksCompleted: 0 },
+        streak: 0
+      }
+    }
+  } });
+
+  const select = webview.elements.get('focus-duration-select');
+  select.value = '45';
+  select.listeners.get('change')();
+  assert.equal(
+    webview.posted.some(({ action, minutes }) => action === 'setFocusMinutes' && minutes === 45),
+    true
+  );
+
+  webview.message({ data: {
+    command: 'productivityState',
+    state: {
+      tasks: [], selectedTaskId: null, selectedTaskTitle: '', reminders: [],
+      focusMinutes: 45,
+      timer: { phase: 'focus', status: 'idle', remainingMs: 45 * 60000 },
+      stats: {
+        today: { focusSessions: 0, focusMinutes: 0, tasksCompleted: 0 },
+        week: { focusSessions: 0, focusMinutes: 0, tasksCompleted: 0 },
+        streak: 0
+      }
+    }
+  } });
+  select.value = 'custom';
+  select.listeners.get('change')();
+  assert.equal(webview.elements.get('focus-duration-custom').hidden, false);
+
+  const input = webview.elements.get('focus-duration-input');
+  input.value = '37';
+  webview.elements.get('focus-duration-custom').listeners.get('submit')({ preventDefault() {} });
+  assert.equal(
+    webview.posted.some(({ action, minutes }) => action === 'setFocusMinutes' && minutes === 37),
+    true
+  );
+});
+
+test('focus duration controls lock while a timer is active', () => {
+  const webview = loadWebview();
+  webview.message({ data: {
+    command: 'productivityState',
+    state: {
+      tasks: [], selectedTaskId: null, selectedTaskTitle: '', reminders: [],
+      focusMinutes: 45,
+      timer: { phase: 'focus', status: 'running', remainingMs: 44 * 60000 },
+      stats: {
+        today: { focusSessions: 0, focusMinutes: 0, tasksCompleted: 0 },
+        week: { focusSessions: 0, focusMinutes: 0, tasksCompleted: 0 },
+        streak: 0
+      }
+    }
+  } });
+
+  assert.equal(webview.elements.get('focus-duration-select').disabled, true);
+  assert.equal(webview.elements.get('focus-duration-input').disabled, true);
+  assert.match(webview.elements.get('focus-duration-hint').textContent, /结束或重置/);
 });
 
 test('tabs support arrow-key navigation and keep one focusable tab', () => {
@@ -354,4 +432,21 @@ test('pajama appearance maps app feedback to matching v2 animation semantics', (
     clientX: 0
   });
   assert.equal(interrupted.elements.get('pet').style.backgroundPosition, '0px -780px');
+});
+
+test('pajama appearance slows frame loops and one-shot actions without changing classic timing', () => {
+  const classic = loadWebview();
+  const classicWorld = classic.elements.get('world');
+  classicWorld.listeners.get('click')({ target: classicWorld, clientX: 700 });
+  assert.equal([...classic.timers.values()].some(({ delay }) => delay === 95), true);
+
+  const pajama = loadWebview();
+  const pajamaWorld = pajama.elements.get('world');
+  pajama.message({ data: { command: 'settings', settings: { outfit: 'pajama' } } });
+  pajamaWorld.listeners.get('click')({ target: pajamaWorld, clientX: 700 });
+  assert.equal([...pajama.timers.values()].some(({ delay }) => delay === 180), true);
+
+  pajama.message({ data: { command: 'jump' } });
+  assert.equal([...pajama.timers.values()].some(({ delay }) => delay === 210), true);
+  assert.equal([...pajama.timers.values()].some(({ delay }) => delay === 1650), true);
 });

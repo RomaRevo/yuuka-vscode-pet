@@ -113,6 +113,21 @@ class YuukaViewProvider {
         <strong id="timer-phase">专注</strong>
         <span id="timer-task">未选择当前任务</span>
       </div>
+      <div class="focus-duration-control">
+        <label for="focus-duration-select">专注时长</label>
+        <select id="focus-duration-select" aria-describedby="focus-duration-hint">
+          <option value="15">15 分钟</option>
+          <option value="25">25 分钟</option>
+          <option value="45">45 分钟</option>
+          <option value="60">60 分钟</option>
+          <option value="custom">自定义</option>
+        </select>
+      </div>
+      <form id="focus-duration-custom" class="focus-duration-custom" hidden>
+        <input id="focus-duration-input" type="number" min="1" max="180" step="1" value="25" inputmode="numeric" aria-label="自定义专注分钟数">
+        <button id="focus-duration-apply" type="submit">应用</button>
+      </form>
+      <div id="focus-duration-hint" class="helper-text">未开始时可调整，范围 1–180 分钟。</div>
       <div id="timer-display" role="timer" aria-label="专注剩余 25 分钟">25:00</div>
       <div class="button-row three">
         <button id="timer-primary">开始</button>

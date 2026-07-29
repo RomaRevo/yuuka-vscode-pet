@@ -9,6 +9,11 @@
   const timerPrimary = document.getElementById('timer-primary');
   const timerStop = document.getElementById('timer-stop');
   const timerReset = document.getElementById('timer-reset');
+  const focusDurationSelect = document.getElementById('focus-duration-select');
+  const focusDurationCustom = document.getElementById('focus-duration-custom');
+  const focusDurationInput = document.getElementById('focus-duration-input');
+  const focusDurationApply = document.getElementById('focus-duration-apply');
+  const focusDurationHint = document.getElementById('focus-duration-hint');
   const taskList = document.getElementById('task-list');
   const taskEmpty = document.getElementById('task-empty');
   const reminderList = document.getElementById('reminder-list');
@@ -42,6 +47,7 @@
     classic: {
       label: '经典制服',
       detail: '保留原有像素风形象与完整互动动画。',
+      timingScale: 1,
       rows: {
         idle: { row: 0, count: 7, speed: 430 },
         right: { row: 1, count: 8, speed: 95 },
@@ -60,6 +66,7 @@
     pajama: {
       label: '睡衣',
       detail: '淡蓝睡衣、枕头与完整 v2 动作，适合夜间陪伴。',
+      timingScale: 1.5,
       rows: {
         idle: { row: 0, count: 6, durations: [280, 110, 110, 140, 140, 320] },
         right: { row: 1, count: 8, durations: [120, 120, 120, 120, 120, 120, 120, 220] },
@@ -88,6 +95,9 @@
     mood: Number.isFinite(persisted.mood) ? Math.max(-2, Math.min(2, Math.round(persisted.mood))) : 0,
     affinity: Number.isFinite(persisted.affinity) ? Math.max(0, Math.min(100, Math.round(persisted.affinity))) : 0
   };
+  const focusDurationPresets = new Set([15, 25, 45, 60]);
+  let editingCustomDuration = false;
+  let pendingFocusMinutes = null;
   let state = 'idle';
   let frame = 0;
   let x = 0;
@@ -230,7 +240,12 @@
   }
 
   function frameDelay(spec) {
-    return spec.durations ? spec.durations[frame] : spec.speed;
+    const baseDelay = spec.durations ? spec.durations[frame] : spec.speed;
+    return scaleAppearanceDuration(baseDelay);
+  }
+
+  function scaleAppearanceDuration(duration) {
+    return Math.round(duration * (activeAppearance.timingScale || 1));
   }
 
   function animate() {
@@ -250,7 +265,7 @@
     }
     render();
     if (!prefersReducedMotion || targetX !== null) {
-      loopTimer = setTimeout(animate, prefersReducedMotion ? 80 : frameDelay(spec));
+      loopTimer = setTimeout(animate, prefersReducedMotion ? scaleAppearanceDuration(80) : frameDelay(spec));
     }
   }
 
@@ -262,7 +277,7 @@
     if (!prefersReducedMotion || targetX !== null) {
       loopTimer = setTimeout(
         animate,
-        prefersReducedMotion ? 80 : frameDelay(activeAppearance.rows[next])
+        prefersReducedMotion ? scaleAppearanceDuration(80) : frameDelay(activeAppearance.rows[next])
       );
     }
   }
@@ -283,7 +298,7 @@
     if (text) say(text);
     oneShotTimer = setTimeout(() => {
       if (!workLocked) setState('idle');
-    }, duration);
+    }, scaleAppearanceDuration(duration));
   }
 
   function passiveOneShot(next, duration, category, force = false) {
@@ -345,7 +360,7 @@
     sayFrom('interrupted');
     workReactionTimer = setTimeout(() => {
       if (workLocked) setState('work');
-    }, 1100);
+    }, scaleAppearanceDuration(1100));
     return true;
   }
 
@@ -415,6 +430,10 @@
       showProductivityMessage(text, 'error');
       finishPendingTask(false);
       finishPendingReminder(false);
+      if (pendingFocusMinutes !== null) {
+        pendingFocusMinutes = null;
+        if (productivity) renderFocusDuration(productivity);
+      }
       say(text);
     }
   }
@@ -474,6 +493,7 @@
     timerPrimary.textContent = next.timer.status === 'running' ? '暂停'
       : next.timer.status === 'paused' ? '继续' : '开始';
     timerStop.disabled = next.timer.status === 'idle';
+    renderFocusDuration(next);
     focusActive = next.timer.status === 'running' && next.timer.phase === 'focus';
     if (restoreActive && focusActive) {
       work();
@@ -482,6 +502,35 @@
     renderTasks(next.tasks || [], next.selectedTaskId);
     renderReminders(next.reminders || []);
     renderStats(next.stats);
+  }
+
+  function renderFocusDuration(next) {
+    const minutes = Math.max(1, Math.min(180, Math.round(Number(next.focusMinutes) || 25)));
+    const locked = next.timer.status !== 'idle';
+    if (pendingFocusMinutes === minutes) pendingFocusMinutes = null;
+    const pending = pendingFocusMinutes !== null;
+    focusDurationSelect.disabled = locked || pending;
+    focusDurationInput.disabled = locked || pending;
+    focusDurationApply.disabled = locked || pending;
+    focusDurationHint.textContent = locked
+      ? '计时进行中；结束或重置后可修改。'
+      : pending
+        ? '正在保存专注时长…'
+        : '未开始时可调整，范围 1–180 分钟。';
+    if ((editingCustomDuration && !locked) || pending) return;
+    const preset = focusDurationPresets.has(minutes);
+    focusDurationSelect.value = preset ? String(minutes) : 'custom';
+    focusDurationCustom.hidden = preset;
+    focusDurationInput.value = String(minutes);
+  }
+
+  function submitFocusDuration(minutes) {
+    if (pendingFocusMinutes !== null || productivity?.timer.status !== 'idle') return;
+    pendingFocusMinutes = minutes;
+    focusDurationSelect.disabled = true;
+    focusDurationInput.disabled = true;
+    focusDurationApply.disabled = true;
+    postProductivity('setFocusMinutes', { minutes });
   }
 
   function renderTasks(tasks, selectedTaskId) {
@@ -699,6 +748,28 @@
   });
   timerStop.addEventListener('click', () => postProductivity('stop'));
   timerReset.addEventListener('click', () => postProductivity('reset'));
+  focusDurationSelect.addEventListener('change', () => {
+    if (focusDurationSelect.value === 'custom') {
+      editingCustomDuration = true;
+      focusDurationCustom.hidden = false;
+      focusDurationInput.focus();
+      return;
+    }
+    editingCustomDuration = false;
+    focusDurationCustom.hidden = true;
+    submitFocusDuration(Number(focusDurationSelect.value));
+  });
+  focusDurationCustom.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const minutes = Number(focusDurationInput.value);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 180) {
+      showProductivityMessage('专注时长必须是 1–180 分钟之间的整数。');
+      focusDurationInput.focus();
+      return;
+    }
+    editingCustomDuration = false;
+    submitFocusDuration(minutes);
+  });
   document.getElementById('task-form').addEventListener('submit', (event) => {
     event.preventDefault();
     if (taskSubmit.disabled) return;

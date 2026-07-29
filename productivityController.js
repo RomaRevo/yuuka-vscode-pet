@@ -20,6 +20,8 @@ const {
 
 const WORKSPACE_KEY = 'yuukaPet.productivity.workspace.v1';
 const STATS_KEY = 'yuukaPet.productivity.stats.v1';
+const MIN_FOCUS_MINUTES = 1;
+const MAX_FOCUS_MINUTES = 180;
 
 class ProductivityController {
   constructor(context, provider, vscode, getSettings) {
@@ -43,6 +45,7 @@ class ProductivityController {
       tasks: this.workspace.tasks,
       selectedTaskId: this.workspace.selectedTaskId,
       selectedTaskTitle: selectedTask?.title || '',
+      focusMinutes: Math.round(this.getSettings().durations.focus / 60000),
       timer: timerSnapshot(this.workspace.timer, now),
       reminders: this.workspace.reminders.slice().sort((a, b) => a.dueAt - b.dueAt),
       stats: statsSummary(this.stats, now)
@@ -91,6 +94,24 @@ class ProductivityController {
       await this.saveWorkspace();
       this.sync();
       this.provider.post('focusStopped');
+      return;
+    }
+    if (action === 'setFocusMinutes') {
+      if (this.workspace.timer.status !== 'idle') {
+        return this.error('请先结束或重置当前计时，再修改专注时长。');
+      }
+      const minutes = Number(payload.minutes);
+      if (!Number.isInteger(minutes) || minutes < MIN_FOCUS_MINUTES || minutes > MAX_FOCUS_MINUTES) {
+        return this.error(`专注时长必须是 ${MIN_FOCUS_MINUTES}–${MAX_FOCUS_MINUTES} 分钟之间的整数。`);
+      }
+      await this.vscode.workspace.getConfiguration('yuukaPet.focus')
+        .update('focusMinutes', minutes, this.vscode.ConfigurationTarget.Global);
+      const durations = { ...settings.durations, focus: minutes * 60000 };
+      if (this.workspace.timer.phase === 'focus') {
+        this.workspace.timer = resetTimer(durations, 'focus');
+        await this.saveWorkspace();
+      }
+      this.sync();
       return;
     }
     if (action === 'addTask') {
@@ -289,4 +310,10 @@ function makeId(prefix) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-module.exports = { ProductivityController, STATS_KEY, WORKSPACE_KEY };
+module.exports = {
+  MAX_FOCUS_MINUTES,
+  MIN_FOCUS_MINUTES,
+  ProductivityController,
+  STATS_KEY,
+  WORKSPACE_KEY
+};

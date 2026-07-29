@@ -377,6 +377,38 @@ button:disabled {
   white-space: nowrap;
 }
 
+.focus-duration-control {
+  display: grid;
+  grid-template-columns: auto minmax(112px, 1fr);
+  align-items: center;
+  gap: var(--yuuka-space-3);
+  margin-top: var(--yuuka-space-3);
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.focus-duration-control select {
+  width: 100%;
+}
+
+.focus-duration-custom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--yuuka-space-2);
+  margin-top: var(--yuuka-space-2);
+}
+
+.focus-duration-custom[hidden] {
+  display: none;
+}
+
+.helper-text {
+  margin-top: var(--yuuka-space-2);
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 #timer-display {
   display: grid;
   height: 82px;

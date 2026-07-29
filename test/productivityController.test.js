@@ -2,7 +2,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { ProductivityController } = require('../productivityController');
+const {
+  MAX_FOCUS_MINUTES,
+  MIN_FOCUS_MINUTES,
+  ProductivityController
+} = require('../productivityController');
 const { MAX_REMINDERS, MAX_TASKS } = require('../productivityState');
 
 function createHarness(options = {}) {
@@ -10,6 +14,7 @@ function createHarness(options = {}) {
   const globalValues = new Map();
   const posted = [];
   const errors = [];
+  let focusMinutes = options.focusMinutes || 1;
   const context = {
     subscriptions: [],
     workspaceState: {
@@ -29,6 +34,15 @@ function createHarness(options = {}) {
     notify: (command, payload = {}) => posted.push({ command, ...payload })
   };
   const vscode = {
+    ConfigurationTarget: { Global: 1 },
+    workspace: {
+      getConfiguration: (section) => ({
+        update: async (key, value) => {
+          if (options.failSettingUpdates) throw new Error('simulated setting failure');
+          if (section === 'yuukaPet.focus' && key === 'focusMinutes') focusMinutes = value;
+        }
+      })
+    },
     window: {
       showInformationMessage: async () => undefined,
       showWarningMessage: async () => undefined,
@@ -36,7 +50,7 @@ function createHarness(options = {}) {
     }
   };
   const settings = () => ({
-    durations: { focus: 60000, shortBreak: 30000, longBreak: 90000 },
+    durations: { focus: focusMinutes * 60000, shortBreak: 30000, longBreak: 90000 },
     longBreakEvery: 4,
     remindersEnabled: false,
     hydrationMinutes: 60,
@@ -45,7 +59,15 @@ function createHarness(options = {}) {
     quietHoursEnd: '08:00'
   });
   const controller = new ProductivityController(context, provider, vscode, settings);
-  return { controller, context, errors, globalValues, posted, workspaceValues };
+  return {
+    controller,
+    context,
+    errors,
+    getFocusMinutes: () => focusMinutes,
+    globalValues,
+    posted,
+    workspaceValues
+  };
 }
 
 test('tasks persist locally and only count their first completion', async (t) => {
@@ -71,6 +93,41 @@ test('elapsed focus records statistics and switches to a break', async (t) => {
   const entries = Object.values(harness.controller.stats.daily);
   assert.equal(entries.reduce((sum, entry) => sum + entry.focusSessions, 0), 1);
   assert.equal(harness.posted.some(({ command }) => command === 'focusCompleted'), true);
+});
+
+test('idle focus duration can use presets or custom whole minutes', async (t) => {
+  const harness = createHarness({ focusMinutes: 25 });
+  t.after(() => harness.context.subscriptions.forEach(({ dispose }) => dispose()));
+
+  assert.equal(harness.controller.viewState().focusMinutes, 25);
+  await harness.controller.handleAction('setFocusMinutes', { minutes: 45 });
+
+  assert.equal(harness.getFocusMinutes(), 45);
+  assert.equal(harness.controller.workspace.timer.durationMs, 45 * 60000);
+  assert.equal(harness.controller.workspace.timer.remainingMs, 45 * 60000);
+  assert.equal(harness.controller.viewState().focusMinutes, 45);
+
+  await harness.controller.handleAction('setFocusMinutes', { minutes: 37 });
+  assert.equal(harness.getFocusMinutes(), 37);
+  assert.equal(harness.controller.workspace.timer.remainingMs, 37 * 60000);
+});
+
+test('focus duration rejects invalid values and changes during an active timer', async (t) => {
+  const harness = createHarness({ focusMinutes: 25 });
+  t.after(() => harness.context.subscriptions.forEach(({ dispose }) => dispose()));
+
+  for (const minutes of [MIN_FOCUS_MINUTES - 1, 12.5, MAX_FOCUS_MINUTES + 1]) {
+    await harness.controller.handleAction('setFocusMinutes', { minutes });
+  }
+  assert.equal(harness.getFocusMinutes(), 25);
+
+  await harness.controller.handleAction('start');
+  await harness.controller.handleAction('setFocusMinutes', { minutes: 60 });
+  assert.equal(harness.getFocusMinutes(), 25);
+  assert.equal(
+    harness.posted.some(({ text }) => text?.includes('结束或重置当前计时')),
+    true
+  );
 });
 
 test('task and reminder creation reject values beyond their explicit limits', async (t) => {
