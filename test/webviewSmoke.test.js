@@ -444,9 +444,9 @@ test('pajama appearance slows frame loops and one-shot actions without changing 
   const pajamaWorld = pajama.elements.get('world');
   pajama.message({ data: { command: 'settings', settings: { outfit: 'pajama' } } });
   pajamaWorld.listeners.get('click')({ target: pajamaWorld, clientX: 700 });
-  assert.equal([...pajama.timers.values()].some(({ delay }) => delay === 180), true);
+  assert.equal([...pajama.timers.values()].some(({ delay }) => delay === 144), true);
 
   pajama.message({ data: { command: 'jump' } });
-  assert.equal([...pajama.timers.values()].some(({ delay }) => delay === 210), true);
-  assert.equal([...pajama.timers.values()].some(({ delay }) => delay === 1650), true);
+  assert.equal([...pajama.timers.values()].some(({ delay }) => delay === 168), true);
+  assert.equal([...pajama.timers.values()].some(({ delay }) => delay === 1320), true);
 });

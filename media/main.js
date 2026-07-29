@@ -66,7 +66,7 @@
     pajama: {
       label: '睡衣',
       detail: '淡蓝睡衣、枕头与完整 v2 动作，适合夜间陪伴。',
-      timingScale: 1.5,
+      timingScale: 1.2,
       rows: {
         idle: { row: 0, count: 6, durations: [280, 110, 110, 140, 140, 320] },
         right: { row: 1, count: 8, durations: [120, 120, 120, 120, 120, 120, 120, 220] },
