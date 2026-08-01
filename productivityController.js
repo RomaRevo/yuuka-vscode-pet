@@ -1,6 +1,8 @@
 'use strict';
 
 const {
+  MAX_REMINDERS,
+  MAX_TASKS,
   completeTimer,
   dateKey,
   hourKey,
@@ -10,6 +12,7 @@ const {
   pauseTimer,
   recordDaily,
   resetTimer,
+  rolloverWorkspaceTasks,
   startTimer,
   statsSummary,
   timerSnapshot
@@ -17,6 +20,8 @@ const {
 
 const WORKSPACE_KEY = 'yuukaPet.productivity.workspace.v1';
 const STATS_KEY = 'yuukaPet.productivity.stats.v1';
+const MIN_FOCUS_MINUTES = 1;
+const MAX_FOCUS_MINUTES = 180;
 
 class ProductivityController {
   constructor(context, provider, vscode, getSettings) {
@@ -24,12 +29,12 @@ class ProductivityController {
     this.provider = provider;
     this.vscode = vscode;
     this.getSettings = getSettings;
-    this.workspace = normalizeWorkspaceState(
-      context.workspaceState.get(WORKSPACE_KEY),
-      this.getSettings().durations
-    );
+    const storedWorkspace = context.workspaceState.get(WORKSPACE_KEY);
+    this.workspace = normalizeWorkspaceState(storedWorkspace, this.getSettings().durations);
     this.stats = normalizeStats(context.globalState.get(STATS_KEY));
-    this.ticking = false;
+    this.pendingWorkspaceSave = storedWorkspace?.version !== this.workspace.version
+      || storedWorkspace?.taskDate !== this.workspace.taskDate;
+    this.queue = Promise.resolve();
     this.interval = setInterval(() => void this.tick(), 1000);
     context.subscriptions.push({ dispose: () => clearInterval(this.interval) });
   }
@@ -40,6 +45,7 @@ class ProductivityController {
       tasks: this.workspace.tasks,
       selectedTaskId: this.workspace.selectedTaskId,
       selectedTaskTitle: selectedTask?.title || '',
+      focusMinutes: Math.round(this.getSettings().durations.focus / 60000),
       timer: timerSnapshot(this.workspace.timer, now),
       reminders: this.workspace.reminders.slice().sort((a, b) => a.dueAt - b.dueAt),
       stats: statsSummary(this.stats, now)
@@ -54,9 +60,14 @@ class ProductivityController {
     this.provider.notify('productivityState', { state: this.viewState() });
   }
 
-  async handleAction(action, payload = {}) {
+  handleAction(action, payload = {}) {
+    return this.enqueue(`productivity action "${action}"`, () => this.handleActionNow(action, payload));
+  }
+
+  async handleActionNow(action, payload = {}) {
     const now = Date.now();
     const settings = this.getSettings();
+    await this.ensureCurrentDay(now);
     if (action === 'start') {
       this.workspace.timer = startTimer(this.workspace.timer, settings.durations, now);
       await this.saveWorkspace();
@@ -85,9 +96,30 @@ class ProductivityController {
       this.provider.post('focusStopped');
       return;
     }
+    if (action === 'setFocusMinutes') {
+      if (this.workspace.timer.status !== 'idle') {
+        return this.error('请先结束或重置当前计时，再修改专注时长。');
+      }
+      const minutes = Number(payload.minutes);
+      if (!Number.isInteger(minutes) || minutes < MIN_FOCUS_MINUTES || minutes > MAX_FOCUS_MINUTES) {
+        return this.error(`专注时长必须是 ${MIN_FOCUS_MINUTES}–${MAX_FOCUS_MINUTES} 分钟之间的整数。`);
+      }
+      await this.vscode.workspace.getConfiguration('yuukaPet.focus')
+        .update('focusMinutes', minutes, this.vscode.ConfigurationTarget.Global);
+      const durations = { ...settings.durations, focus: minutes * 60000 };
+      if (this.workspace.timer.phase === 'focus') {
+        this.workspace.timer = resetTimer(durations, 'focus');
+        await this.saveWorkspace();
+      }
+      this.sync();
+      return;
+    }
     if (action === 'addTask') {
       const title = cleanText(payload.title);
       if (!title) return this.error('任务内容不能为空。');
+      if (this.workspace.tasks.length >= MAX_TASKS) {
+        return this.error(`今日任务已达到 ${MAX_TASKS} 项，请完成或删除部分任务后再添加。`);
+      }
       this.workspace.tasks.push({
         id: makeId('task'), title, completed: false, counted: false, createdAt: now, completedAt: null
       });
@@ -131,6 +163,9 @@ class ProductivityController {
       const dueAt = Number(payload.dueAt);
       if (!text) return this.error('提醒内容不能为空。');
       if (!Number.isFinite(dueAt) || dueAt <= now) return this.error('请选择未来的提醒时间。');
+      if (this.workspace.reminders.length >= MAX_REMINDERS) {
+        return this.error(`待处理提醒已达到 ${MAX_REMINDERS} 项，请删除部分提醒后再添加。`);
+      }
       this.workspace.reminders.push({ id: makeId('reminder'), text, dueAt });
       await this.saveWorkspace();
       this.sync();
@@ -155,7 +190,11 @@ class ProductivityController {
     }
   }
 
-  async refreshSettings() {
+  refreshSettings() {
+    return this.enqueue('refresh productivity settings', () => this.refreshSettingsNow());
+  }
+
+  async refreshSettingsNow() {
     if (this.workspace.timer.status === 'idle') {
       this.workspace.timer = resetTimer(this.getSettings().durations, this.workspace.timer.phase);
       await this.saveWorkspace();
@@ -163,34 +202,33 @@ class ProductivityController {
     this.sync();
   }
 
-  async tick() {
-    if (this.ticking) return;
-    this.ticking = true;
-    try {
-      const now = Date.now();
-      const settings = this.getSettings();
-      if (this.workspace.timer.status === 'running' && this.workspace.timer.endAt <= now) {
-        const result = completeTimer(this.workspace, settings.durations, settings.longBreakEvery);
-        this.workspace = result.workspace;
-        if (result.completedPhase === 'focus') {
-          this.stats = recordDaily(this.stats, dateKey(now), {
-            focusSessions: 1,
-            focusMinutes: result.completedMinutes
-          });
-          await this.saveStats();
-          void this.vscode.window.showInformationMessage('优香：专注完成，按计划休息一下吧。');
-          this.provider.notify('focusCompleted', { nextPhase: this.workspace.timer.phase });
-        } else {
-          void this.vscode.window.showInformationMessage('优香：休息结束，准备继续下一轮计划吧。');
-          this.provider.notify('breakCompleted');
-        }
-        await this.saveWorkspace();
+  tick() {
+    return this.enqueue('productivity timer tick', () => this.tickNow());
+  }
+
+  async tickNow() {
+    const now = Date.now();
+    const settings = this.getSettings();
+    await this.ensureCurrentDay(now);
+    if (this.workspace.timer.status === 'running' && this.workspace.timer.endAt <= now) {
+      const result = completeTimer(this.workspace, settings.durations, settings.longBreakEvery);
+      this.workspace = result.workspace;
+      if (result.completedPhase === 'focus') {
+        this.stats = recordDaily(this.stats, dateKey(now), {
+          focusSessions: 1,
+          focusMinutes: result.completedMinutes
+        });
+        await this.saveStats();
+        void this.vscode.window.showInformationMessage('优香：专注完成，按计划休息一下吧。');
+        this.provider.notify('focusCompleted', { nextPhase: this.workspace.timer.phase });
+      } else {
+        void this.vscode.window.showInformationMessage('优香：休息结束，准备继续下一轮计划吧。');
+        this.provider.notify('breakCompleted');
       }
-      await this.checkReminders(now, settings);
-      this.syncVisible();
-    } finally {
-      this.ticking = false;
+      await this.saveWorkspace();
     }
+    await this.checkReminders(now, settings);
+    this.syncVisible();
   }
 
   async checkReminders(now, settings) {
@@ -228,6 +266,33 @@ class ProductivityController {
     this.provider.post('productivityError', { text });
   }
 
+  async ensureCurrentDay(now) {
+    const result = rolloverWorkspaceTasks(this.workspace, now);
+    if (result.changed) {
+      this.workspace = result.workspace;
+      this.pendingWorkspaceSave = true;
+    }
+    if (!this.pendingWorkspaceSave) return;
+    await this.saveWorkspace();
+    this.pendingWorkspaceSave = false;
+  }
+
+  enqueue(label, operation) {
+    const pending = this.queue.then(operation);
+    this.queue = pending.catch(() => undefined);
+    return pending.catch((error) => {
+      this.reportFailure(label, error);
+      return undefined;
+    });
+  }
+
+  reportFailure(label, error) {
+    console.error(`[Yuuka Pet] ${label} failed`, error);
+    const text = '本地状态保存失败，请稍后重试。';
+    this.provider.post('productivityError', { text });
+    void this.vscode.window.showErrorMessage(`优香：${text}`);
+  }
+
   saveWorkspace() {
     return this.context.workspaceState.update(WORKSPACE_KEY, this.workspace);
   }
@@ -245,4 +310,10 @@ function makeId(prefix) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-module.exports = { ProductivityController, STATS_KEY, WORKSPACE_KEY };
+module.exports = {
+  MAX_FOCUS_MINUTES,
+  MIN_FOCUS_MINUTES,
+  ProductivityController,
+  STATS_KEY,
+  WORKSPACE_KEY
+};

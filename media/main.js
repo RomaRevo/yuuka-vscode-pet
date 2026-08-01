@@ -9,50 +9,95 @@
   const timerPrimary = document.getElementById('timer-primary');
   const timerStop = document.getElementById('timer-stop');
   const timerReset = document.getElementById('timer-reset');
+  const focusDurationSelect = document.getElementById('focus-duration-select');
+  const focusDurationCustom = document.getElementById('focus-duration-custom');
+  const focusDurationInput = document.getElementById('focus-duration-input');
+  const focusDurationApply = document.getElementById('focus-duration-apply');
+  const focusDurationHint = document.getElementById('focus-duration-hint');
   const taskList = document.getElementById('task-list');
   const taskEmpty = document.getElementById('task-empty');
   const reminderList = document.getElementById('reminder-list');
   const reminderEmpty = document.getElementById('reminder-empty');
+  const taskInput = document.getElementById('task-input');
+  const taskSubmit = document.getElementById('task-submit');
+  const reminderInput = document.getElementById('reminder-input');
+  const reminderTime = document.getElementById('reminder-time');
+  const reminderSubmit = document.getElementById('reminder-submit');
+  const productivityMessage = document.getElementById('productivity-message');
   const relationshipEnabled = document.getElementById('relationship-enabled');
   const relationshipControls = document.getElementById('relationship-controls');
   const moodSelect = document.getElementById('mood-select');
   const affinityRange = document.getElementById('affinity-range');
   const affinityNumber = document.getElementById('affinity-number');
   const affinityOutput = document.getElementById('affinity-output');
+  const outfitSelect = document.getElementById('outfit-select');
+  const outfitName = document.getElementById('outfit-name');
+  const outfitDetail = document.getElementById('outfit-detail');
   const sceneSelect = document.getElementById('scene-select');
   const sceneName = document.getElementById('scene-name');
   const sceneDetail = document.getElementById('scene-detail');
   const dialogue = window.YUUKA_DIALOGUE || {};
   const relationshipDialogue = window.YUUKA_RELATIONSHIP_DIALOGUE || {};
   const dialoguePolicy = window.YUUKA_DIALOGUE_POLICY;
-  const persisted = vscode.getState() || {};
-  const frameW = 72;
-  const frameH = 78;
-  const scale = 2;
-  const rows = {
-    idle: { row: 0, count: 7, speed: 430 },
-    right: { row: 1, count: 8, speed: 95 },
-    left: { row: 2, count: 8, speed: 95 },
-    greet: { row: 3, count: 4, speed: 180 },
-    jump: { row: 4, count: 5, speed: 110 },
-    alert: { row: 5, count: 8, speed: 150 },
-    think: { row: 6, count: 6, speed: 260 },
-    work: { row: 7, count: 6, speed: 210 },
-    celebrate: { row: 8, count: 6, speed: 140 },
-    lookRight: { row: 9, count: 8, speed: 180 },
-    lookLeft: { row: 10, count: 8, speed: 180 },
-    workAngry: { row: 11, count: 6, speed: 210 }
+  let persisted = vscode.getState() || {};
+  const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false;
+  const frameW = 144;
+  const frameH = 156;
+  const appearances = {
+    classic: {
+      label: '经典制服',
+      detail: '保留原有像素风形象与完整互动动画。',
+      timingScale: 1,
+      rows: {
+        idle: { row: 0, count: 7, speed: 430 },
+        right: { row: 1, count: 8, speed: 95 },
+        left: { row: 2, count: 8, speed: 95 },
+        greet: { row: 3, count: 4, speed: 180 },
+        jump: { row: 4, count: 5, speed: 110 },
+        alert: { row: 5, count: 8, speed: 150 },
+        think: { row: 6, count: 6, speed: 260 },
+        work: { row: 7, count: 6, speed: 210 },
+        celebrate: { row: 8, count: 6, speed: 140 },
+        lookRight: { row: 9, count: 8, speed: 180 },
+        lookLeft: { row: 10, count: 8, speed: 180 },
+        workAngry: { row: 11, count: 6, speed: 210 }
+      }
+    },
+    pajama: {
+      label: '睡衣',
+      detail: '淡蓝睡衣、枕头与完整 v2 动作，适合夜间陪伴。',
+      timingScale: 1.2,
+      rows: {
+        idle: { row: 0, count: 6, durations: [280, 110, 110, 140, 140, 320] },
+        right: { row: 1, count: 8, durations: [120, 120, 120, 120, 120, 120, 120, 220] },
+        left: { row: 2, count: 8, durations: [120, 120, 120, 120, 120, 120, 120, 220] },
+        greet: { row: 3, count: 4, durations: [140, 140, 140, 280] },
+        jump: { row: 4, count: 5, durations: [140, 140, 140, 140, 280] },
+        alert: { row: 6, count: 6, durations: [150, 150, 150, 150, 150, 260] },
+        think: { row: 8, count: 6, durations: [150, 150, 150, 150, 150, 280] },
+        work: { row: 7, count: 6, durations: [120, 120, 120, 120, 120, 220] },
+        celebrate: { row: 3, count: 4, durations: [140, 140, 140, 280] },
+        lookRight: { row: 9, count: 1, frames: [4], speed: 180 },
+        lookLeft: { row: 10, count: 1, frames: [4], speed: 180 },
+        workAngry: { row: 5, count: 8, durations: [140, 140, 140, 140, 140, 140, 140, 240] }
+      }
+    }
   };
+  let activeAppearance = appearances.classic;
   const recentDialogue = [];
   let settings = {
     relationshipEnabled: true,
     randomEventFrequency: 'low',
-    scene: 'millennium'
+    scene: 'millennium',
+    outfit: 'classic'
   };
   let relationship = {
     mood: Number.isFinite(persisted.mood) ? Math.max(-2, Math.min(2, Math.round(persisted.mood))) : 0,
     affinity: Number.isFinite(persisted.affinity) ? Math.max(0, Math.min(100, Math.round(persisted.affinity))) : 0
   };
+  const focusDurationPresets = new Set([15, 25, 45, 60]);
+  let editingCustomDuration = false;
+  let pendingFocusMinutes = null;
   let state = 'idle';
   let frame = 0;
   let x = 0;
@@ -71,9 +116,21 @@
   let lastInteractionAt = 0;
   let lastWorkInterruptionAt = 0;
   let lastPassiveReactionAt = 0;
+  let pendingTaskCount = null;
+  let pendingReminderCount = null;
+
+  function persistState(patch) {
+    persisted = { ...persisted, ...patch };
+    vscode.setState(persisted);
+  }
 
   function persistRelationship() {
-    vscode.setState({ ...persisted, ...relationship });
+    persistState(relationship);
+  }
+
+  function persistPosition() {
+    const limit = maxX();
+    persistState({ positionRatio: limit > 0 ? x / limit : 0.5 });
   }
 
   function renderRelationship() {
@@ -109,6 +166,22 @@
     sceneSelect.value = scene;
     sceneName.textContent = scenes[scene][0];
     sceneDetail.textContent = scenes[scene][1];
+  }
+
+  function renderAppearance() {
+    const outfit = Object.hasOwn(appearances, settings.outfit) ? settings.outfit : 'classic';
+    const changed = activeAppearance !== appearances[outfit];
+    settings.outfit = outfit;
+    activeAppearance = appearances[outfit];
+    world.dataset.outfit = outfit;
+    outfitSelect.value = outfit;
+    outfitName.textContent = activeAppearance.label;
+    outfitDetail.textContent = activeAppearance.detail;
+    if (changed) {
+      frame = 0;
+      place(x);
+      setState(state);
+    }
   }
 
   function adjustRelationship(moodDelta, affinityDelta) {
@@ -152,7 +225,7 @@
   }
 
   function maxX() {
-    return Math.max(0, world.clientWidth - frameW * scale);
+    return Math.max(0, world.clientWidth - frameW);
   }
 
   function place(nextX) {
@@ -161,26 +234,39 @@
   }
 
   function render() {
-    const spec = rows[state];
-    pet.style.backgroundPosition = `${-frame * frameW * scale}px ${-spec.row * frameH * scale}px`;
+    const spec = activeAppearance.rows[state];
+    const cell = spec.frames ? spec.frames[frame] : frame;
+    pet.style.backgroundPosition = `${-cell * frameW}px ${-spec.row * frameH}px`;
+  }
+
+  function frameDelay(spec) {
+    const baseDelay = spec.durations ? spec.durations[frame] : spec.speed;
+    return scaleAppearanceDuration(baseDelay);
+  }
+
+  function scaleAppearanceDuration(duration) {
+    return Math.round(duration * (activeAppearance.timingScale || 1));
   }
 
   function animate() {
     clearTimeout(loopTimer);
-    const spec = rows[state];
-    frame = (frame + 1) % spec.count;
+    const spec = activeAppearance.rows[state];
+    frame = prefersReducedMotion ? 0 : (frame + 1) % spec.count;
     if (targetX !== null) {
       const delta = targetX - x;
       if (Math.abs(delta) < 4) {
         place(targetX);
         targetX = null;
+        persistPosition();
         setState('idle');
         return;
       }
       place(x + Math.sign(delta) * Math.min(7, Math.abs(delta)));
     }
     render();
-    loopTimer = setTimeout(animate, spec.speed);
+    if (!prefersReducedMotion || targetX !== null) {
+      loopTimer = setTimeout(animate, prefersReducedMotion ? scaleAppearanceDuration(80) : frameDelay(spec));
+    }
   }
 
   function setState(next) {
@@ -188,7 +274,12 @@
     frame = 0;
     render();
     clearTimeout(loopTimer);
-    loopTimer = setTimeout(animate, rows[next].speed);
+    if (!prefersReducedMotion || targetX !== null) {
+      loopTimer = setTimeout(
+        animate,
+        prefersReducedMotion ? scaleAppearanceDuration(80) : frameDelay(activeAppearance.rows[next])
+      );
+    }
   }
 
   function say(text) {
@@ -207,7 +298,7 @@
     if (text) say(text);
     oneShotTimer = setTimeout(() => {
       if (!workLocked) setState('idle');
-    }, duration);
+    }, scaleAppearanceDuration(duration));
   }
 
   function passiveOneShot(next, duration, category, force = false) {
@@ -269,7 +360,7 @@
     sayFrom('interrupted');
     workReactionTimer = setTimeout(() => {
       if (workLocked) setState('work');
-    }, 1100);
+    }, scaleAppearanceDuration(1100));
     return true;
   }
 
@@ -278,6 +369,7 @@
       settings = { ...settings, ...(payload.settings || {}) };
       renderRelationship();
       renderScene();
+      renderAppearance();
       return;
     }
     if (command === 'saved') passiveOneShot('greet', 1100, 'saved');
@@ -334,8 +426,41 @@
     if (command === 'hydrationReminder') passiveOneShot('alert', 2400, 'hydrationReminder', true);
     if (command === 'hourlyReminder') passiveOneShot('greet', 1600, 'hourlyReminder');
     if (command === 'productivityError') {
-      say(payload.text || chooseLine('interaction'));
+      const text = payload.text || chooseLine('interaction');
+      showProductivityMessage(text, 'error');
+      finishPendingTask(false);
+      finishPendingReminder(false);
+      if (pendingFocusMinutes !== null) {
+        pendingFocusMinutes = null;
+        if (productivity) renderFocusDuration(productivity);
+      }
+      say(text);
     }
+  }
+
+  function showProductivityMessage(text, tone = 'info') {
+    productivityMessage.hidden = !text;
+    productivityMessage.textContent = text || '';
+    productivityMessage.dataset.tone = tone;
+  }
+
+  function finishPendingTask(succeeded) {
+    if (pendingTaskCount === null) return;
+    if (succeeded) taskInput.value = '';
+    taskSubmit.disabled = false;
+    taskInput.setAttribute('aria-busy', 'false');
+    pendingTaskCount = null;
+  }
+
+  function finishPendingReminder(succeeded) {
+    if (pendingReminderCount === null) return;
+    if (succeeded) {
+      reminderInput.value = '';
+      reminderTime.value = '';
+    }
+    reminderSubmit.disabled = false;
+    reminderInput.setAttribute('aria-busy', 'false');
+    pendingReminderCount = null;
   }
 
   function releaseFocus(category) {
@@ -349,14 +474,26 @@
 
   function renderProductivity(next, restoreActive = false) {
     if (!next) return;
+    const taskAdded = pendingTaskCount !== null && (next.tasks || []).length > pendingTaskCount;
+    const reminderAdded = pendingReminderCount !== null
+      && (next.reminders || []).length > pendingReminderCount;
+    if (taskAdded) finishPendingTask(true);
+    if (reminderAdded) finishPendingReminder(true);
+    showProductivityMessage('');
     productivity = next;
     const phaseLabels = { focus: '专注', shortBreak: '短休息', longBreak: '长休息' };
     timerPhase.textContent = phaseLabels[next.timer.phase] || '专注';
     timerTask.textContent = next.selectedTaskTitle || '未选择当前任务';
     timerDisplay.textContent = formatDuration(next.timer.remainingMs);
+    const statusLabels = { idle: '尚未开始', running: '进行中', paused: '已暂停' };
+    timerDisplay.setAttribute(
+      'aria-label',
+      `${phaseLabels[next.timer.phase] || '专注'}${statusLabels[next.timer.status] || ''}，剩余 ${timerDisplay.textContent}`
+    );
     timerPrimary.textContent = next.timer.status === 'running' ? '暂停'
       : next.timer.status === 'paused' ? '继续' : '开始';
     timerStop.disabled = next.timer.status === 'idle';
+    renderFocusDuration(next);
     focusActive = next.timer.status === 'running' && next.timer.phase === 'focus';
     if (restoreActive && focusActive) {
       work();
@@ -365,6 +502,35 @@
     renderTasks(next.tasks || [], next.selectedTaskId);
     renderReminders(next.reminders || []);
     renderStats(next.stats);
+  }
+
+  function renderFocusDuration(next) {
+    const minutes = Math.max(1, Math.min(180, Math.round(Number(next.focusMinutes) || 25)));
+    const locked = next.timer.status !== 'idle';
+    if (pendingFocusMinutes === minutes) pendingFocusMinutes = null;
+    const pending = pendingFocusMinutes !== null;
+    focusDurationSelect.disabled = locked || pending;
+    focusDurationInput.disabled = locked || pending;
+    focusDurationApply.disabled = locked || pending;
+    focusDurationHint.textContent = locked
+      ? '计时进行中；结束或重置后可修改。'
+      : pending
+        ? '正在保存专注时长…'
+        : '未开始时可调整，范围 1–180 分钟。';
+    if ((editingCustomDuration && !locked) || pending) return;
+    const preset = focusDurationPresets.has(minutes);
+    focusDurationSelect.value = preset ? String(minutes) : 'custom';
+    focusDurationCustom.hidden = preset;
+    focusDurationInput.value = String(minutes);
+  }
+
+  function submitFocusDuration(minutes) {
+    if (pendingFocusMinutes !== null || productivity?.timer.status !== 'idle') return;
+    pendingFocusMinutes = minutes;
+    focusDurationSelect.disabled = true;
+    focusDurationInput.disabled = true;
+    focusDurationApply.disabled = true;
+    postProductivity('setFocusMinutes', { minutes });
   }
 
   function renderTasks(tasks, selectedTaskId) {
@@ -469,6 +635,7 @@
     if (wasDragging) {
       adjustRelationship(0, 1);
       setState('idle');
+      persistPosition();
       sayFrom('placed');
       return;
     }
@@ -478,13 +645,13 @@
   world.addEventListener('click', (event) => {
     if (reactToWorkInterruption() || event.target === pet) return;
     const clickX = event.clientX - world.getBoundingClientRect().left;
-    targetX = Math.max(0, Math.min(maxX(), clickX - frameW * scale / 2));
+    targetX = Math.max(0, Math.min(maxX(), clickX - frameW / 2));
     setState(targetX >= x ? 'right' : 'left');
   });
 
   world.addEventListener('pointermove', (event) => {
     if (workLocked || dragging || state !== 'idle') return;
-    const petCenter = world.getBoundingClientRect().left + x + frameW * scale / 2;
+    const petCenter = world.getBoundingClientRect().left + x + frameW / 2;
     const direction = event.clientX >= petCenter ? 'lookRight' : 'lookLeft';
     clearTimeout(lookIntentTimer);
     clearTimeout(lookReturnTimer);
@@ -545,17 +712,35 @@
     clearTimeout(workReactionTimer);
     targetX = null;
     place(maxX() / 2);
+    persistPosition();
     oneShot('greet', 1200, chooseLine('reset'));
   });
-  for (const tab of document.querySelectorAll('.tab')) {
-    tab.addEventListener('click', () => {
-      for (const candidate of document.querySelectorAll('.tab')) {
-        const active = candidate === tab;
-        candidate.classList.toggle('active', active);
-        candidate.setAttribute('aria-selected', String(active));
-        document.getElementById(candidate.dataset.panel).hidden = !active;
-        document.getElementById(candidate.dataset.panel).classList.toggle('active', active);
-      }
+  const tabs = [...document.querySelectorAll('.tab')];
+  function activateTab(tab, { focus = false, persist = true } = {}) {
+    for (const candidate of tabs) {
+      const active = candidate === tab;
+      candidate.classList.toggle('active', active);
+      candidate.setAttribute('aria-selected', String(active));
+      candidate.setAttribute('tabindex', active ? '0' : '-1');
+      const panel = document.getElementById(candidate.dataset.panel);
+      panel.hidden = !active;
+      panel.classList.toggle('active', active);
+    }
+    if (persist) persistState({ activePanel: tab.dataset.panel });
+    if (focus) tab.focus();
+  }
+  for (const tab of tabs) {
+    tab.addEventListener('click', () => activateTab(tab));
+    tab.addEventListener('keydown', (event) => {
+      const index = tabs.indexOf(tab);
+      let nextIndex = null;
+      if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
+      if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = tabs.length - 1;
+      if (nextIndex === null) return;
+      event.preventDefault();
+      activateTab(tabs[nextIndex], { focus: true });
     });
   }
   timerPrimary.addEventListener('click', () => {
@@ -563,18 +748,46 @@
   });
   timerStop.addEventListener('click', () => postProductivity('stop'));
   timerReset.addEventListener('click', () => postProductivity('reset'));
+  focusDurationSelect.addEventListener('change', () => {
+    if (focusDurationSelect.value === 'custom') {
+      editingCustomDuration = true;
+      focusDurationCustom.hidden = false;
+      focusDurationInput.focus();
+      return;
+    }
+    editingCustomDuration = false;
+    focusDurationCustom.hidden = true;
+    submitFocusDuration(Number(focusDurationSelect.value));
+  });
+  focusDurationCustom.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const minutes = Number(focusDurationInput.value);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 180) {
+      showProductivityMessage('专注时长必须是 1–180 分钟之间的整数。');
+      focusDurationInput.focus();
+      return;
+    }
+    editingCustomDuration = false;
+    submitFocusDuration(minutes);
+  });
   document.getElementById('task-form').addEventListener('submit', (event) => {
     event.preventDefault();
-    const input = document.getElementById('task-input');
-    postProductivity('addTask', { title: input.value });
-    input.value = '';
+    if (taskSubmit.disabled) return;
+    pendingTaskCount = productivity?.tasks.length || 0;
+    taskSubmit.disabled = true;
+    taskInput.setAttribute('aria-busy', 'true');
+    postProductivity('addTask', { title: taskInput.value });
   });
   document.getElementById('reminder-form').addEventListener('submit', (event) => {
     event.preventDefault();
-    const input = document.getElementById('reminder-input');
-    const time = document.getElementById('reminder-time');
-    postProductivity('addReminder', { text: input.value, dueAt: new Date(time.value).getTime() });
-    input.value = '';
+    if (reminderSubmit.disabled) return;
+    pendingReminderCount = productivity?.reminders.length || 0;
+    reminderSubmit.disabled = true;
+    reminderInput.setAttribute('aria-busy', 'true');
+    postProductivity('addReminder', {
+      text: reminderInput.value,
+      dueAt: new Date(reminderTime.value).getTime()
+    });
   });
   document.getElementById('clear-stats').addEventListener('click', () => postProductivity('clearStats'));
   relationshipEnabled.addEventListener('change', () => {
@@ -594,6 +807,11 @@
     renderScene();
     vscode.postMessage({ type: 'appearanceSettings', scene: settings.scene });
   });
+  outfitSelect.addEventListener('change', () => {
+    settings.outfit = outfitSelect.value;
+    renderAppearance();
+    vscode.postMessage({ type: 'appearanceSettings', outfit: settings.outfit });
+  });
   window.addEventListener('resize', () => place(x));
   window.addEventListener('message', (event) => {
     if (event.data.command === 'play') play('interaction');
@@ -607,15 +825,19 @@
       clearTimeout(workReactionTimer);
       targetX = null;
       place(maxX() / 2);
+      persistPosition();
       setState('idle');
     }
     handleCommand(event.data.command, event.data);
   });
 
-  place(maxX() / 2);
+  place(maxX() * (Number.isFinite(persisted.positionRatio) ? persisted.positionRatio : 0.5));
   setState('idle');
   renderRelationship();
   renderScene();
+  renderAppearance();
+  const initialTab = tabs.find(({ dataset }) => dataset.panel === persisted.activePanel) || tabs[0];
+  if (initialTab) activateTab(initialTab, { persist: false });
   randomEventTimer = setInterval(maybeRunRandomEvent, 60000);
   window.addEventListener('beforeunload', () => {
     clearTimeout(loopTimer);

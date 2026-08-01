@@ -23,6 +23,7 @@ def main() -> None:
     name = package["name"]
     version = package["version"]
     publisher = package["publisher"]
+    extension_kind = ",".join(package.get("extensionKind", ["workspace"]))
     vsix = args.output.resolve() if args.output else DIST / f"{name}-{version}.vsix"
     DIST.mkdir(exist_ok=True)
     vsix.parent.mkdir(parents=True, exist_ok=True)
@@ -33,6 +34,7 @@ def main() -> None:
   <Default Extension="js" ContentType="application/javascript" />
   <Default Extension="css" ContentType="text/css" />
   <Default Extension="png" ContentType="image/png" />
+  <Default Extension="webp" ContentType="image/webp" />
   <Default Extension="svg" ContentType="image/svg+xml" />
   <Default Extension="md" ContentType="text/markdown" />
   <Default Extension="py" ContentType="text/plain" />
@@ -51,7 +53,7 @@ def main() -> None:
       <Property Id="Microsoft.VisualStudio.Code.Engine" Value="{escape(package['engines']['vscode'])}" />
       <Property Id="Microsoft.VisualStudio.Code.ExtensionDependencies" Value="" />
       <Property Id="Microsoft.VisualStudio.Code.ExtensionPack" Value="" />
-      <Property Id="Microsoft.VisualStudio.Code.ExtensionKind" Value="workspace" />
+      <Property Id="Microsoft.VisualStudio.Code.ExtensionKind" Value="{escape(extension_kind)}" />
       <Property Id="Microsoft.VisualStudio.Services.Content.Pricing" Value="Free" />
     </Properties>
     <Icon>extension/media/icon.png</Icon>
@@ -86,6 +88,7 @@ def main() -> None:
         "media/icon.png",
         "media/scene-office-v1.png",
         "media/spritesheet.png",
+        "media/spritesheet-pajama.webp",
     ]
     with zipfile.ZipFile(vsix, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("[Content_Types].xml", content_types)
