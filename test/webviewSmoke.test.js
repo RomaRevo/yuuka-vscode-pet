@@ -43,7 +43,7 @@ class FakeElement {
   hasPointerCapture() { return false; }
 }
 
-function loadWebview() {
+function loadWebview({ reducedMotion = false } = {}) {
   const elements = new Map([
     ['world', new FakeElement()],
     ['pet', new FakeElement()],
@@ -131,7 +131,7 @@ function loadWebview() {
         annoyed: ['annoyed'], saved: ['saved'], taskSucceeded: ['success'], reset: ['reset']
       },
       addEventListener: (type, listener) => windowListeners.set(type, listener),
-      matchMedia: () => ({ matches: false })
+      matchMedia: () => ({ matches: reducedMotion })
     },
     setTimeout: (callback, delay) => {
       const id = nextTimerId;
@@ -449,4 +449,29 @@ test('pajama appearance slows frame loops and one-shot actions without changing 
   pajama.message({ data: { command: 'jump' } });
   assert.equal([...pajama.timers.values()].some(({ delay }) => delay === 168), true);
   assert.equal([...pajama.timers.values()].some(({ delay }) => delay === 1320), true);
+});
+
+test('explicit walking advances both outfits in both directions with reduced motion enabled', () => {
+  const cases = [
+    { outfit: 'classic', clientX: 700, row: 1, delay: 95 },
+    { outfit: 'classic', clientX: 0, row: 2, delay: 95 },
+    { outfit: 'pajama', clientX: 700, row: 1, delay: 144 },
+    { outfit: 'pajama', clientX: 0, row: 2, delay: 144 }
+  ];
+
+  for (const { outfit, clientX, row, delay } of cases) {
+    const webview = loadWebview({ reducedMotion: true });
+    if (outfit === 'pajama') {
+      webview.message({ data: { command: 'settings', settings: { outfit } } });
+    }
+    const world = webview.elements.get('world');
+    const pet = webview.elements.get('pet');
+    world.listeners.get('click')({ target: world, clientX });
+
+    const walkTimer = [...webview.timers.values()].find((timer) => timer.delay === delay);
+    assert.ok(walkTimer, `${outfit} should use its configured walking delay`);
+    assert.equal(pet.style.backgroundPosition, `0px ${-row * 156}px`);
+    walkTimer.callback();
+    assert.equal(pet.style.backgroundPosition, `-144px ${-row * 156}px`);
+  }
 });

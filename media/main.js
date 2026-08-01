@@ -248,10 +248,17 @@
     return Math.round(duration * (activeAppearance.timingScale || 1));
   }
 
+  function animationDelay(spec) {
+    return prefersReducedMotion && targetX === null
+      ? scaleAppearanceDuration(80)
+      : frameDelay(spec);
+  }
+
   function animate() {
     clearTimeout(loopTimer);
     const spec = activeAppearance.rows[state];
-    frame = prefersReducedMotion ? 0 : (frame + 1) % spec.count;
+    const walking = targetX !== null;
+    frame = prefersReducedMotion && !walking ? 0 : (frame + 1) % spec.count;
     if (targetX !== null) {
       const delta = targetX - x;
       if (Math.abs(delta) < 4) {
@@ -265,7 +272,7 @@
     }
     render();
     if (!prefersReducedMotion || targetX !== null) {
-      loopTimer = setTimeout(animate, prefersReducedMotion ? scaleAppearanceDuration(80) : frameDelay(spec));
+      loopTimer = setTimeout(animate, animationDelay(spec));
     }
   }
 
@@ -277,7 +284,7 @@
     if (!prefersReducedMotion || targetX !== null) {
       loopTimer = setTimeout(
         animate,
-        prefersReducedMotion ? scaleAppearanceDuration(80) : frameDelay(activeAppearance.rows[next])
+        animationDelay(activeAppearance.rows[next])
       );
     }
   }

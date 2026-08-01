@@ -2,7 +2,7 @@
   "name": "yuuka-vscode-pet",
   "displayName": "桌宠：像素小优香",
   "description": "早濑优香独立 VS Code 桌宠：像素动画、专注计时、任务提醒、编辑器联动与互动。",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "publisher": "local-yuuka-pet",
   "license": "UNLICENSED",
   "engines": {
