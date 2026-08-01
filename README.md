@@ -4,17 +4,17 @@
 
 ## 安装
 
-1. 从 [GitHub Releases](https://github.com/RomaRevo/yuuka-vscode-pet/releases/tag/v1.4.2) 下载 `yuuka-vscode-pet-1.4.2.vsix`。
+1. 从 [GitHub Releases](https://github.com/RomaRevo/yuuka-vscode-pet/releases/tag/v1.5.0) 下载 `yuuka-vscode-pet-1.5.0.vsix`。
 2. 在 VS Code 中运行 `Extensions: Install from VSIX...`。
 3. 选择 VSIX，安装后运行 `Developer: Reload Window`。
 
 也可以在终端安装：
 
 ```text
-code --install-extension yuuka-vscode-pet-1.4.2.vsix
+code --install-extension yuuka-vscode-pet-1.5.0.vsix
 ```
 
-当前扩展版本：`1.4.2`。完整变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+当前扩展版本：`1.5.0`。完整变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 快速开始
 
